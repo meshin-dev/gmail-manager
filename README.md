@@ -148,6 +148,9 @@ An **open-source** intelligent Gmail automation system that uses ChatGPT to cate
 ![Gmail Interface with Processed Emails](./images/screenshot.002.png)
 *Gmail interface showing processed emails with "010: Requires Action" and "700: Processed" labels applied automatically*
 
+![Gmail Email with All Labels Applied](./images/screenshot.003.png)
+*Gmail email showing comprehensive label system: Family (150), Urgent+Important (001), Requires Action (010), Has Deadline (015), and Processed (700) labels automatically applied*
+
 ### Open-Source Advantages
 
 - **🔓 Completely Free**: No licensing fees or subscriptions
@@ -731,6 +734,9 @@ switchToScheduled();   // Alias for enableScheduledMode()
 // Automatically called for URGENT_IMPORTANT emails
 // Creates calendar event for "tomorrow 2pm" with 1-hour duration
 ```
+
+![Google Calendar Event Created](./images/screenshot.004.png)
+*Google Calendar event automatically created with "🔴 URGENT: Should add birthdays" title and "2–3PM" timing based on AI analysis*
 
 #### `parseAISuggestedTime(suggestedTime)`
 
