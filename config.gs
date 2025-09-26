@@ -17,7 +17,7 @@ const CONFIG = {
   PROCESS_HISTORICAL_EMAILS: false, // Set to true to process emails before PROCESS_FROM_DATE
 
   // ChatGPT configuration
-  GPT_MODEL: "gpt-4o-mini", // Use cheaper model for cost efficiency
+  GPT_MODEL: "gpt-4o", // Use smarter model for better accuracy
 
   // Eisenhower Matrix labels with hardcoded prefixes
   EISENHOWER_MATRIX: {

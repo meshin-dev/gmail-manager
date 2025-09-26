@@ -2,13 +2,14 @@
 // Automatic sorting of all life areas by importance and urgency
 
 /**
- * Processes all emails in the inbox using batch processing mode.
- * This is the legacy batch processing function for processing large volumes of emails.
+ * Processes emails with configurable mode (batch or real-time).
+ * This is the unified email processing function that handles both batch and real-time processing.
+ * @param {string} mode - Processing mode: 'batch' for historical emails, 'realtime' for new emails
  * @returns {void}
  */
-function processLifeEmails() {
+function processEmails(mode = "batch") {
   try {
-    console.log("🚀 Starting smart email processing...");
+    console.log(`🚀 Starting smart email processing (${mode} mode)...`);
 
     // Validate system before processing
     if (!validateSystem()) {
@@ -16,8 +17,31 @@ function processLifeEmails() {
       return;
     }
 
-    // Get new emails from inbox
-    const threads = GmailApp.getInboxThreads(0, 50);
+    let threads;
+    let searchQuery;
+
+    if (mode === "realtime") {
+      // Real-time processing: only unread emails not already processed
+      searchQuery = "in:inbox is:unread";
+      try {
+        const processedLabelName = CONFIG.LABELS.PROCESSED.name;
+        const processedLabel = GmailApp.getUserLabelByName(processedLabelName);
+        if (processedLabel) {
+          searchQuery += ` -label:"${processedLabelName}"`;
+        }
+      } catch (e) {
+        console.log("📋 PROCESSED label doesn't exist yet, using basic search");
+      }
+      threads = GmailApp.search(searchQuery, 0, CONFIG.BATCH_SIZE);
+    } else {
+      // Batch processing: all inbox emails
+      threads = GmailApp.getInboxThreads(0, 50);
+    }
+
+    if (threads.length === 0) {
+      console.log("📧 No emails to process");
+      return;
+    }
 
     console.log(`📧 Found ${threads.length} emails to process`);
 
@@ -25,7 +49,27 @@ function processLifeEmails() {
       if (!thread.hasStarredMessages()) {
         // Process only unstarred emails
         processEmailThread(thread);
-        Utilities.sleep(2000); // Pause between requests
+
+        // Mark as processed to avoid reprocessing
+        console.log("🔍 Attempting to get/create PROCESSED label...");
+        const processedLabel = getOrCreateLabel("PROCESSED");
+        console.log(
+          "🔍 PROCESSED label result:",
+          processedLabel ? "SUCCESS" : "FAILED"
+        );
+
+        if (processedLabel) {
+          thread.addLabel(processedLabel);
+          console.log(
+            `   ✓ Marked as processed: ${thread
+              .getFirstMessageSubject()
+              .substring(0, 50)}...`
+          );
+        } else {
+          console.error("❌ Failed to get/create PROCESSED label");
+        }
+
+        Utilities.sleep(mode === "realtime" ? 1000 : 2000); // Shorter pause for real-time
       }
     }
 
@@ -38,50 +82,27 @@ function processLifeEmails() {
 }
 
 /**
- * Processes new unread emails in real-time mode.
- * This function is triggered automatically when new emails arrive.
+ * Legacy function for backward compatibility.
+ * @deprecated Use processEmails('realtime') instead
  * @returns {void}
  */
 function processNewEmails() {
-  try {
-    console.log("⚡ Processing new emails in real-time...");
+  console.log(
+    "⚠️ processNewEmails() is deprecated. Use processEmails('realtime') instead."
+  );
+  processEmails("realtime");
+}
 
-    // Validate system before processing
-    if (!validateSystem()) {
-      console.error("❌ System validation failed. Please check configuration.");
-      return;
-    }
-
-    // Get only truly new emails (unread)
-    const threads = GmailApp.search("in:inbox is:unread", 0, CONFIG.BATCH_SIZE);
-
-    if (threads.length === 0) {
-      console.log("📧 No new unread emails to process");
-      return;
-    }
-
-    console.log(`📧 Found ${threads.length} new unread emails to process`);
-
-    for (let thread of threads) {
-      if (!thread.hasStarredMessages()) {
-        // Process only unstarred emails
-        processEmailThread(thread);
-
-        // Mark as processed to avoid reprocessing
-        const processedLabel = getOrCreateLabel("PROCESSED");
-        if (processedLabel) {
-          thread.addLabel(processedLabel);
-        }
-
-        Utilities.sleep(1000); // Shorter pause for real-time processing
-      }
-    }
-
-    console.log("✅ Real-time processing completed");
-  } catch (error) {
-    console.error("❌ Error during real-time processing:", error);
-    sendErrorNotification(error.toString());
-  }
+/**
+ * Legacy function for backward compatibility.
+ * @deprecated Use processEmails('batch') instead
+ * @returns {void}
+ */
+function processLifeEmails() {
+  console.log(
+    "⚠️ processLifeEmails() is deprecated. Use processEmails('batch') instead."
+  );
+  processEmails("batch");
 }
 
 /**
@@ -193,8 +214,8 @@ function processEmailThread(thread) {
       }
     }
 
-    // Remove from inbox (achieve Inbox Zero)
-    thread.moveToArchive();
+    // Note: Inbox behavior is now handled by keepInInbox logic in processEmailThread
+    // This ensures emails stay in inbox when keepInInbox: true
   } catch (error) {
     console.error(`❌ Error processing email thread:`, error);
     // Mark for manual review on error
@@ -258,29 +279,36 @@ function applyLifeManagementLabels(thread, analysis) {
     }
   });
 
-  // 3. Add Eisenhower Matrix label
+  // 3. Add Eisenhower Matrix label (determined by cumulative category flags)
+  console.log(
+    `🎯 Applying Eisenhower Matrix label: ${analysis.eisenhower_quadrant}`
+  );
   const quadrant = CONFIG.EISENHOWER_MATRIX[analysis.eisenhower_quadrant];
   if (quadrant) {
     const priorityLabel = getOrCreateLabel(analysis.eisenhower_quadrant);
     if (priorityLabel) {
       thread.addLabel(priorityLabel);
+      console.log(`   ✓ Added priority label: ${priorityLabel.getName()}`);
     }
 
     // Apply corresponding priority actions
     applyPriorityActions(thread, analysis, quadrant);
 
     // Handle inbox behavior based on keepInInbox flag
-    if (!quadrant.keepInInbox) {
+    console.log(`🔍 Quadrant keepInInbox value: ${quadrant.keepInInbox}`);
+    console.log(`🔍 Quadrant name: ${quadrant.name}`);
+
+    if (quadrant.keepInInbox) {
+      // Keep in inbox for urgent/important items
+      console.log(
+        `📥 Keeping email in inbox (${analysis.eisenhower_quadrant})`
+      );
+    } else {
       // Move out of inbox for not urgent + not important items
       console.log(
         `📤 Moving email out of inbox (${analysis.eisenhower_quadrant})`
       );
       thread.moveToArchive();
-    } else {
-      // Keep in inbox for urgent/important items
-      console.log(
-        `📥 Keeping email in inbox (${analysis.eisenhower_quadrant})`
-      );
     }
   }
 
@@ -302,8 +330,15 @@ function applyLifeManagementLabels(thread, analysis) {
  * @returns {void}
  */
 function applyPriorityActions(thread, analysis, quadrant) {
-  switch (quadrant.priority) {
-    case 1: // 🔴 Urgent + Important - immediate actions
+  console.log("🔍 applyPriorityActions called with quadrant:", quadrant);
+  console.log("🔍 Analysis eisenhower_quadrant:", analysis.eisenhower_quadrant);
+
+  // Use the quadrant name to determine priority actions
+  switch (analysis.eisenhower_quadrant) {
+    case "URGENT_IMPORTANT": // 🔴 Urgent + Important - immediate actions
+      console.log(
+        "🔍 Processing URGENT_IMPORTANT - calling scheduleUrgentReminder"
+      );
       thread.markImportant();
       // Note: Gmail API doesn't support programmatic starring
       // Users can manually star important emails
@@ -311,16 +346,18 @@ function applyPriorityActions(thread, analysis, quadrant) {
       scheduleUrgentReminder(thread, analysis);
       break;
 
-    case 2: // 🟠 Not Urgent + Important - plan
+    case "NOT_URGENT_IMPORTANT": // 🟠 Not Urgent + Important - plan
+      console.log("🔍 Processing NOT_URGENT_IMPORTANT - planning");
       thread.markImportant();
       applyLabelWithTrashLogic(thread, "TO_PLAN");
       break;
 
-    case 3: // 🟡 Urgent + Not Important - delegate/minimize
+    case "URGENT_NOT_IMPORTANT": // 🟡 Urgent + Not Important - delegate/minimize
+      console.log("🔍 Processing URGENT_NOT_IMPORTANT - delegate");
       applyLabelWithTrashLogic(thread, "DELEGATE");
       break;
 
-    case 4: // ⚫ Not Urgent + Not Important - archive/delete
+    case "NOT_URGENT_NOT_IMPORTANT": // ⚫ Not Urgent + Not Important - archive/delete
       if (
         analysis.categories.includes("SPAM") ||
         analysis.categories.includes("JUNK") ||
@@ -343,41 +380,265 @@ function applyPriorityActions(thread, analysis, quadrant) {
  */
 function scheduleUrgentReminder(thread, analysis) {
   try {
+    console.log(
+      "🔍 scheduleUrgentReminder called for:",
+      thread.getFirstMessageSubject()
+    );
+    console.log("🔍 Analysis object:", JSON.stringify(analysis, null, 2));
+
+    // Check if calendar event creation should be ignored
+    if (
+      analysis.calendar_scheduling &&
+      analysis.calendar_scheduling.ignoreCalendarEventCreation
+    ) {
+      console.log(
+        "🔍 Skipping calendar event creation - email is from calendar system or already scheduled"
+      );
+      console.log(
+        "🔍 Reason: Email appears to be from existing calendar system or about already scheduled events"
+      );
+      return;
+    }
+
     // Create reminder in Google Calendar
     const calendar = CalendarApp.getDefaultCalendar();
-    
-    // Set reminder time to 30+ minutes from now to give buffer time
-    const now = new Date();
-    const reminderTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
-    const endTime = new Date(reminderTime.getTime() + 15 * 60 * 1000); // 15-minute event
+    console.log("🔍 Calendar object:", calendar ? "SUCCESS" : "FAILED");
+
+    // Determine scheduling time based on AI suggestion or default
+    let reminderTime, endTime;
+
+    if (
+      analysis.calendar_scheduling &&
+      analysis.calendar_scheduling.is_ai_suggested &&
+      analysis.calendar_scheduling.suggested_time
+    ) {
+      console.log(
+        "🔍 Using AI-suggested timing:",
+        analysis.calendar_scheduling.suggested_time
+      );
+      console.log(
+        "🔍 Scheduling reason:",
+        analysis.calendar_scheduling.scheduling_reason
+      );
+
+      // Parse AI-suggested time (basic implementation - can be enhanced)
+      reminderTime = parseAISuggestedTime(
+        analysis.calendar_scheduling.suggested_time
+      );
+      
+      // Calculate event duration based on AI's estimated_time
+      const estimatedDuration = parseEstimatedTime(analysis.estimated_time);
+      endTime = new Date(reminderTime.getTime() + estimatedDuration);
+    } else {
+      console.log("🔍 Using default timing (30 minutes from now)");
+      // Default: 30+ minutes from now to give buffer time
+      const now = new Date();
+      reminderTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
+      
+      // Calculate event duration based on AI's estimated_time
+      const estimatedDuration = parseEstimatedTime(analysis.estimated_time);
+      endTime = new Date(reminderTime.getTime() + estimatedDuration);
+    }
 
     // Create the calendar event
     const event = calendar.createEvent(
       `🔴 URGENT: ${thread.getFirstMessageSubject()}`,
       reminderTime,
       endTime,
-      {
-        description: `URGENT EMAIL REMINDER\n\n` +
-          `Summary: ${analysis.summary || 'No summary available'}\n` +
-          `Action: ${analysis.suggested_action || 'Review and take action'}\n` +
-          `Deadline: ${analysis.deadline || 'ASAP'}\n` +
-          `Categories: ${analysis.categories.join(', ')}\n` +
-          `Email Link: ${thread.getPermalink()}\n\n` +
-          `This is an automated reminder for an urgent and important email.`,
-        location: 'Gmail Inbox',
-        guests: [] // No guests for personal reminders
-      }
+      `URGENT EMAIL REMINDER\n\n` +
+        `Summary: ${analysis.summary || "No summary available"}\n` +
+        `Action: ${analysis.suggested_action || "Review and take action"}\n` +
+        `Deadline: ${analysis.deadline || "ASAP"}\n` +
+        `Categories: ${analysis.categories.join(", ")}\n` +
+        `Email Link: ${thread.getPermalink()}\n\n` +
+        `This is an automated reminder for an urgent and important email.`
     );
 
     // Set reminder to notify 5 minutes before the event
     event.addPopupReminder(5);
-    
-    console.log(`⏰ Created urgent reminder for: ${thread.getFirstMessageSubject()}`);
+
+    console.log(
+      `⏰ Created urgent reminder for: ${thread.getFirstMessageSubject()}`
+    );
     console.log(`📅 Reminder scheduled for: ${reminderTime.toLocaleString()}`);
   } catch (error) {
     console.error("❌ Error creating urgent reminder:", error);
     console.error("📝 Make sure Google Calendar API is enabled");
   }
+}
+
+/**
+ * Parses AI-suggested time string into a Date object.
+ * @param {string} suggestedTime - The AI-suggested time string
+ * @returns {Date} The parsed date object
+ */
+function parseAISuggestedTime(suggestedTime) {
+  const now = new Date();
+
+  console.log("🔍 Parsing AI-suggested time:", suggestedTime);
+
+  // Handle ISO format: "2025-09-28T14:00:00"
+  if (suggestedTime.includes("T") && suggestedTime.includes(":")) {
+    const parsedDate = new Date(suggestedTime);
+    if (!isNaN(parsedDate.getTime())) {
+      console.log("🔍 Parsed ISO format:", parsedDate);
+      return parsedDate;
+    }
+  }
+
+  // Handle "tomorrow 2pm", "Friday 3pm" format
+  const lowerTime = suggestedTime.toLowerCase();
+
+  // Handle "tomorrow" with specific time
+  if (lowerTime.includes("tomorrow")) {
+    const timeMatch = lowerTime.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)?/);
+    let hours = 9; // Default to 9 AM
+    let minutes = 0;
+
+    if (timeMatch) {
+      hours = parseInt(timeMatch[1]);
+      minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+      const ampm = timeMatch[3];
+
+      if (ampm === "pm" && hours !== 12) hours += 12;
+      if (ampm === "am" && hours === 12) hours = 0;
+    }
+
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(hours, minutes, 0, 0);
+
+    console.log("🔍 Parsed 'tomorrow' time:", tomorrow);
+    return tomorrow;
+  }
+
+  // Handle "Friday 3pm", "Monday 9am" format
+  const dayMatch = lowerTime.match(
+    /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(\d{1,2}):?(\d{2})?\s*(am|pm)?/
+  );
+  if (dayMatch) {
+    const dayName = dayMatch[1];
+    let hours = parseInt(dayMatch[2]);
+    const minutes = dayMatch[3] ? parseInt(dayMatch[3]) : 0;
+    const ampm = dayMatch[4];
+
+    if (ampm === "pm" && hours !== 12) hours += 12;
+    if (ampm === "am" && hours === 12) hours = 0;
+
+    const dayNames = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ];
+    const targetDay = dayNames.indexOf(dayName);
+    const currentDay = now.getDay();
+    const daysUntilTarget = (targetDay - currentDay + 7) % 7;
+    const targetDate = daysUntilTarget === 0 ? 7 : daysUntilTarget; // If today, schedule for next week
+
+    const result = new Date(now);
+    result.setDate(now.getDate() + targetDate);
+    result.setHours(hours, minutes, 0, 0);
+
+    console.log("🔍 Parsed day format:", result);
+    return result;
+  }
+
+  // Handle "today" with specific time
+  if (lowerTime.includes("today")) {
+    const timeMatch = lowerTime.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)?/);
+    let hours = 14; // Default to 2 PM
+    let minutes = 0;
+
+    if (timeMatch) {
+      hours = parseInt(timeMatch[1]);
+      minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+      const ampm = timeMatch[3];
+
+      if (ampm === "pm" && hours !== 12) hours += 12;
+      if (ampm === "am" && hours === 12) hours = 0;
+    }
+
+    const today = new Date(now);
+    today.setHours(hours, minutes, 0, 0);
+
+    // If time has passed today, schedule for tomorrow
+    if (today <= now) {
+      today.setDate(today.getDate() + 1);
+    }
+
+    console.log("🔍 Parsed 'today' time:", today);
+    return today;
+  }
+
+  // Handle "asap" or "urgent"
+  if (lowerTime.includes("asap") || lowerTime.includes("urgent")) {
+    const asap = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+    console.log("🔍 Parsed 'ASAP' time:", asap);
+    return asap;
+  }
+
+  // Default fallback: 2 hours from now
+  console.log("🔍 Using fallback time (2 hours from now)");
+  return new Date(now.getTime() + 2 * 60 * 60 * 1000);
+}
+
+/**
+ * Parses estimated time string into milliseconds.
+ * @param {string} estimatedTime - The estimated time string (e.g., "1 hour", "30 minutes", "2 hours")
+ * @returns {number} Duration in milliseconds
+ */
+function parseEstimatedTime(estimatedTime) {
+  if (!estimatedTime) {
+    console.log("🔍 No estimated time provided, using default 15 minutes");
+    return 15 * 60 * 1000; // 15 minutes default
+  }
+
+  const lowerTime = estimatedTime.toLowerCase();
+  console.log("🔍 Parsing estimated time:", estimatedTime);
+
+  // Handle "1 hour", "2 hours", etc.
+  const hourMatch = lowerTime.match(/(\d+)\s*hour/);
+  if (hourMatch) {
+    const hours = parseInt(hourMatch[1]);
+    const duration = hours * 60 * 60 * 1000;
+    console.log(`🔍 Parsed ${hours} hour(s): ${duration}ms`);
+    return duration;
+  }
+
+  // Handle "30 minutes", "45 minutes", etc.
+  const minuteMatch = lowerTime.match(/(\d+)\s*minute/);
+  if (minuteMatch) {
+    const minutes = parseInt(minuteMatch[1]);
+    const duration = minutes * 60 * 1000;
+    console.log(`🔍 Parsed ${minutes} minute(s): ${duration}ms`);
+    return duration;
+  }
+
+  // Handle "1h", "2h", etc.
+  const hourShortMatch = lowerTime.match(/(\d+)h/);
+  if (hourShortMatch) {
+    const hours = parseInt(hourShortMatch[1]);
+    const duration = hours * 60 * 60 * 1000;
+    console.log(`🔍 Parsed ${hours}h: ${duration}ms`);
+    return duration;
+  }
+
+  // Handle "30m", "45m", etc.
+  const minuteShortMatch = lowerTime.match(/(\d+)m/);
+  if (minuteShortMatch) {
+    const minutes = parseInt(minuteShortMatch[1]);
+    const duration = minutes * 60 * 1000;
+    console.log(`🔍 Parsed ${minutes}m: ${duration}ms`);
+    return duration;
+  }
+
+  // Default fallback: 15 minutes
+  console.log("🔍 Could not parse estimated time, using default 15 minutes");
+  return 15 * 60 * 1000;
 }
 
 /**
@@ -393,17 +654,29 @@ function generateProcessingReport() {
     by_priority: {},
   };
 
-  // Collect statistics by labels
-  Object.values(CONFIG.LABELS).forEach((config) => {
-    try {
-      const label = GmailApp.getUserLabelByName(config.name);
-      if (label) {
-        const count = label.getThreads(0, 1000).length;
-        report.by_category[config.name] = count;
-        report.processed += count;
-      }
-    } catch (e) {}
-  });
+  // Get session statistics from PropertiesService
+  const sessionStats = getSessionStatistics();
+
+  // Use session statistics if available, otherwise fall back to label counts
+  if (sessionStats && sessionStats.processed > 0) {
+    report.processed = sessionStats.processed;
+    report.by_category = sessionStats.by_category || {};
+    report.by_priority = sessionStats.by_priority || {};
+    console.log("📊 Using session statistics for report");
+  } else {
+    // Fallback: Collect statistics by labels (total counts)
+    console.log("📊 No session data found, using label counts");
+    Object.values(CONFIG.LABELS).forEach((config) => {
+      try {
+        const label = GmailApp.getUserLabelByName(config.name);
+        if (label) {
+          const count = label.getThreads(0, 1000).length;
+          report.by_category[config.name] = count;
+          report.processed += count;
+        }
+      } catch (e) {}
+    });
+  }
 
   console.log("📊 Processing report:", JSON.stringify(report, null, 2));
 
@@ -1476,6 +1749,8 @@ function showOurLabelAgreements() {
  * @returns {GmailLabel|null} The label object or null if creation failed
  */
 function getOrCreateLabel(labelKey) {
+  console.log(`🔍 getOrCreateLabel called with: ${labelKey}`);
+
   // Get the hardcoded label name from config
   let labelName;
   let label;
@@ -1486,9 +1761,11 @@ function getOrCreateLabel(labelKey) {
   ) {
     // Label key (like "REQUIRES_ACTION") - get hardcoded name
     labelName = getLabelName(labelKey);
+    console.log(`🔍 Found config for ${labelKey}, labelName: ${labelName}`);
   } else if (typeof labelKey === "string" && labelKey.includes(":")) {
     // Already hardcoded label name (like "010: ⚡ Requires Action")
     labelName = labelKey;
+    console.log(`🔍 Using hardcoded labelName: ${labelName}`);
   } else {
     console.error(`❌ Invalid labelKey: ${labelKey}`);
     return null;
@@ -1499,10 +1776,14 @@ function getOrCreateLabel(labelKey) {
     return null;
   }
 
+  console.log(`🔍 Looking for existing label: ${labelName}`);
   label = GmailApp.getUserLabelByName(labelName);
   if (!label) {
+    console.log(`🔍 Label not found, creating: ${labelName}`);
     label = GmailApp.createLabel(labelName);
     console.log(`🏷️ Created label: ${labelName}`);
+  } else {
+    console.log(`🔍 Found existing label: ${labelName}`);
   }
   return label;
 }
@@ -1536,6 +1817,81 @@ function logProcessedEmail(emailData, analysis) {
   console.log(
     `✅ Processed: ${emailData.subject} -> [${categoriesStr}] (${analysis.eisenhower_quadrant})`
   );
+
+  // Track in session statistics
+  trackEmailProcessing(analysis);
+}
+
+/**
+ * Tracks email processing in session statistics.
+ * @param {Object} analysis - The AI analysis results
+ * @returns {void}
+ */
+function trackEmailProcessing(analysis) {
+  const sessionKey = "PROCESSING_SESSION_STATS";
+  let stats = JSON.parse(getSecret(sessionKey) || "{}");
+
+  // Initialize if not exists
+  if (!stats.processed) {
+    stats = {
+      processed: 0,
+      by_category: {},
+      by_priority: {},
+    };
+  }
+
+  // Increment processed count
+  stats.processed++;
+
+  // Track by category
+  analysis.categories.forEach((category) => {
+    const categoryName = CONFIG.LABELS[category]?.name || category;
+    stats.by_category[categoryName] =
+      (stats.by_category[categoryName] || 0) + 1;
+  });
+
+  // Track by priority
+  const quadrant = analysis.eisenhower_quadrant;
+  stats.by_priority[quadrant] = (stats.by_priority[quadrant] || 0) + 1;
+
+  // Save updated stats
+  setSecret(sessionKey, JSON.stringify(stats));
+}
+
+/**
+ * Gets current session statistics.
+ * @returns {Object|null} Session statistics or null if none
+ */
+function getSessionStatistics() {
+  const sessionKey = "PROCESSING_SESSION_STATS";
+  const stats = getSecret(sessionKey);
+  return stats ? JSON.parse(stats) : null;
+}
+
+/**
+ * Clears session statistics.
+ * @returns {void}
+ */
+function clearSessionStatistics() {
+  const sessionKey = "PROCESSING_SESSION_STATS";
+  setSecret(sessionKey, "");
+  console.log("🧹 Session statistics cleared");
+}
+
+/**
+ * Shows current session statistics.
+ * @returns {void}
+ */
+function showSessionStatistics() {
+  const stats = getSessionStatistics();
+  if (stats && stats.processed > 0) {
+    console.log("📊 Current Session Statistics:");
+    console.log(`   Processed: ${stats.processed} emails`);
+    console.log("   By Category:", JSON.stringify(stats.by_category, null, 2));
+    console.log("   By Priority:", JSON.stringify(stats.by_priority, null, 2));
+  } else {
+    console.log("📊 No session statistics available");
+  }
 }
 
 /**

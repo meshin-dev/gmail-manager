@@ -12,7 +12,7 @@ function analyzeEmailWithChatGPT(emailData) {
   const configContext = buildConfigurationContext();
 
   const prompt = `
-You are an expert email management AI with access to a comprehensive configuration system. Your task is to analyze emails and categorize them accurately based on the provided configuration.
+You are an expert email management AI specializing in precise categorization and urgency/importance assessment. Analyze this email with extreme attention to detail.
 
 ${configContext}
 
@@ -21,25 +21,110 @@ Subject: ${emailData.subject}
 Sender: ${emailData.sender}
 Text: ${emailData.body.substring(0, 2000)}
 
-ANALYSIS REQUIREMENTS:
-1. Identify ALL relevant life categories (emails can have multiple categories)
-2. Be aware of urgency/importance flags for each category
-3. Consider trash-worthy categories (SPAM, JUNK, PHISHING)
-4. Look for action items, deadlines, and priority indicators
-5. Consider sender reputation and email content quality
+CRITICAL ANALYSIS INSTRUCTIONS:
 
-Return JSON:
+1. **CATEGORY IDENTIFICATION**: 
+   - Read the email content CAREFULLY
+   - Identify the PRIMARY life area this email relates to
+   - Look for keywords, context, and subject matter
+   - Consider the sender and their relationship to you
+   - Family emails: birthdays, family events, relatives, family planning, family health
+   - Work emails: projects, meetings, deadlines, colleagues, business
+   - Health emails: medical appointments, health concerns, fitness
+   - Financial emails: bills, investments, banking, taxes, money management
+
+2. **URGENCY ASSESSMENT**:
+   - URGENT = Has immediate deadline, requires quick action, time-sensitive
+   - NOT URGENT = Can be planned, scheduled, or done later
+   - Look for words like: "urgent", "asap", "deadline", "today", "immediately", "quickly"
+   - Consider if the task can wait or must be done now
+
+3. **IMPORTANCE ASSESSMENT**:
+   - IMPORTANT = Affects your life goals, relationships, health, finances, career
+   - NOT IMPORTANT = Trivial, entertainment, low-priority tasks
+   - Family matters are usually IMPORTANT
+   - Work deadlines are usually IMPORTANT
+   - Health issues are usually IMPORTANT
+   - Financial matters are usually IMPORTANT
+
+4. **SPECIAL CONSIDERATIONS**:
+   - Family-related emails (birthdays, family events, relatives) = FAMILY category + IMPORTANT
+   - Work-related emails = WORK category + usually IMPORTANT
+   - Health-related emails = HEALTH category + usually IMPORTANT
+   - Financial emails = FINANCIAL category + usually IMPORTANT
+   - Spam/junk/phishing = mark as trash-worthy
+
+5. **CALENDAR SCHEDULING FOR URGENT + IMPORTANT**:
+   - If email is identified as URGENT + IMPORTANT, analyze the content for timing cues
+   - ONLY suggest calendar timing if the email clearly states a FINAL date/time
+   - DO NOT create calendar events for emails that are:
+     * From Google Calendar, Outlook, or other calendar systems
+     * About events already scheduled/planned
+     * Reminders for existing calendar events
+     * Meeting invitations or calendar notifications
+     * Any email that mentions "already scheduled", "in your calendar", "event created"
+   - CRITICAL: Return SPECIFIC, PARSEABLE dates in ISO format or specific time format
+   - Examples of CORRECT suggested_time format:
+     * "2025-09-28T14:00:00" (ISO format)
+     * "tomorrow 2pm" (specific time)
+     * "2025-09-28 14:00" (date and time)
+     * "Friday 3pm" (day and time)
+   - Examples of INCORRECT suggested_time format:
+     * "tomorrow after lunch" (too vague)
+     * "sometime this week" (too vague)
+     * "when convenient" (too vague)
+
+6. **LANGUAGE ANALYSIS**:
+   - Russian text: "Важное напоминание себе" = "Important reminder to myself"
+   - "Нужно забить все дни рождения" = "Need to enter all birthdays"
+   - "родственников и друзей" = "relatives and friends" = FAMILY category
+   - "Срочно и важно" = "Urgent and important" = URGENT + IMPORTANT
+
+Return JSON with precise analysis:
 {
-  "categories": ["array_of_category_keys", "can_be_multiple"],
+  "categories": ["PRIMARY_CATEGORY_KEY"],
   "confidence": 0.95,
-  "reasoning": "detailed explanation of category choices and urgency/importance assessment",
+  "reasoning": "Detailed step-by-step analysis: 1) Content analysis, 2) Category identification, 3) Urgency assessment, 4) Importance assessment, 5) Final decision",
   "is_spam_or_junk": false,
-  "action_needed": true|false,
-  "deadline": "deadline if exists",
-  "estimated_time": "time to complete",
-  "suggested_action": "what needs to be done",
-  "summary": "brief email summary"
+  "action_needed": true,
+  "deadline": "specific deadline if mentioned",
+  "estimated_time": "realistic time estimate",
+  "suggested_action": "specific action to take",
+  "summary": "concise email summary",
+  "ai_urgent": true|false,
+  "ai_important": true|false,
+  "calendar_scheduling": {
+    "suggested_time": "SPECIFIC parseable date/time (e.g., '2025-09-28T14:00:00', 'tomorrow 2pm', 'Friday 3pm') - NO vague terms like 'after lunch'",
+    "scheduling_reason": "explanation of why this timing was chosen",
+    "is_ai_suggested": true|false,
+    "ignoreCalendarEventCreation": true|false
+  }
 }
+
+CRITICAL: Use ONLY the category KEYS (like "FAMILY", "WORK", "HEALTH") in the categories array, NOT the full label names with numbers and emojis.
+
+URGENCY/IMPORTANCE ASSESSMENT:
+- ai_urgent: Set to true if the email requires immediate action, has deadlines, or is time-sensitive
+- ai_important: Set to true if the email affects your life goals, relationships, health, finances, or career
+- These will be used as baseline, then overridden by any TRUE values from assigned category labels
+
+CALENDAR EVENT CREATION ASSESSMENT:
+- ignoreCalendarEventCreation: Set to true if the email is:
+  * From Google Calendar, Outlook, or other calendar systems
+  * About events already scheduled/planned
+  * Reminders for existing calendar events
+  * Meeting invitations or calendar notifications
+  * Any email that mentions "already scheduled", "in your calendar", "event created"
+  * Vague timing like "sometime this week", "when convenient", "let's meet"
+- Set to false only if the email clearly states a FINAL, specific date/time for a NEW task/event
+
+CRITICAL: CALENDAR TIME FORMAT REQUIREMENTS:
+- ALWAYS return specific, parseable dates in suggested_time
+- PREFERRED formats: "2025-09-28T14:00:00" or "tomorrow 2pm" or "Friday 3pm"
+- NEVER use vague terms like "after lunch", "sometime", "when convenient"
+- If email says "tomorrow after lunch", convert to "tomorrow 2pm"
+- If email says "this Friday", convert to "Friday 9am" or specific time
+- If email says "next week", convert to specific date like "2025-10-03T09:00:00"
 `;
 
   const payload = {
@@ -48,15 +133,15 @@ Return JSON:
       {
         role: "system",
         content:
-          "You are an expert in productivity and email management. Analyze emails and categorize them by ALL relevant life areas. Be aware of the configuration context provided and make accurate decisions about urgency, importance, and appropriate categorization. One email can relate to multiple categories simultaneously.",
+          "You are an expert email categorization AI with deep understanding of urgency, importance, and life categories. You excel at analyzing email content, identifying primary categories, and making precise urgency/importance assessments. You understand multiple languages including Russian and can accurately translate and categorize content. You always provide detailed reasoning for your decisions and focus on the PRIMARY category that best fits the email content.",
       },
       {
         role: "user",
         content: prompt,
       },
     ],
-    max_tokens: 800,
-    temperature: 0.1,
+    max_tokens: 1500,
+    temperature: 0.05,
   };
 
   try {
@@ -97,9 +182,10 @@ Return JSON:
       if (jsonMatch) {
         try {
           const analysis = JSON.parse(jsonMatch[0]);
-          // Determine Eisenhower quadrant based on isUrgent/isImportant flags
+          // Determine Eisenhower quadrant based on AI assessment and label flags
           analysis.eisenhower_quadrant = determineEisenhowerQuadrant(
-            analysis.categories
+            analysis.categories,
+            analysis
           );
           return analysis;
         } catch (parseError) {
@@ -146,6 +232,12 @@ function buildConfigurationContext() {
   }
   context += "\n";
 
+  // Category keys reference
+  context += "AVAILABLE CATEGORY KEYS (use these in your response):\n";
+  const allKeys = Object.keys(CONFIG.LABELS);
+  context += allKeys.join(", ") + "\n";
+  context += "\n";
+
   // Urgent but not important categories
   context += "URGENT CATEGORIES (Urgent + Not Important):\n";
   for (const [key, config] of Object.entries(CONFIG.LABELS)) {
@@ -184,6 +276,20 @@ function buildConfigurationContext() {
   context += "- Spam email = SPAM (trash-worthy)\n";
   context += "- Newsletter = NEWSLETTERS (low priority)\n";
   context += "- Meeting request = MEETINGS (urgent but not important)\n";
+  context += "- Family birthdays = FAMILY (important, not urgent)\n";
+  context += "- Russian family emails = FAMILY (important, not urgent)\n";
+  context += "\n";
+
+  // Russian keywords for better categorization
+  context += "RUSSIAN KEYWORDS FOR CATEGORIZATION:\n";
+  context +=
+    "- Family: 'родственников', 'друзей', 'семья', 'дни рождения', 'семейные'\n";
+  context += "- Urgent: 'срочно', 'urgent', 'asap', 'немедленно'\n";
+  context += "- Important: 'важно', 'important', 'важное', 'критично'\n";
+  context += "- Work: 'работа', 'проект', 'встреча', 'дедлайн'\n";
+  context += "- Health: 'здоровье', 'врач', 'больница', 'медицинский'\n";
+  context += "\n";
+
   context +=
     "- Investment opportunity = INVESTMENTS (important but not urgent)\n";
 
@@ -191,37 +297,105 @@ function buildConfigurationContext() {
 }
 
 /**
- * Determines the Eisenhower Matrix quadrant based on category urgency and importance flags.
- * @param {Array<string>} categories - Array of category keys
+ * Finds the category key from a full label name (e.g., "150: 👨‍👩‍👧‍👦 Family" -> "FAMILY").
+ * @param {string} labelName - The full label name with number prefix
+ * @returns {string|null} The category key or null if not found
+ */
+function findCategoryKeyFromLabelName(labelName) {
+  // Search through all labels to find one that matches the name
+  for (const [key, config] of Object.entries(CONFIG.LABELS)) {
+    if (config.name === labelName) {
+      return key;
+    }
+  }
+  return null;
+}
+
+/**
+ * Determines the Eisenhower Matrix quadrant based on AI assessment and category flags.
+ * @param {Array<string>} categories - Array of category keys or full label names
+ * @param {Object} analysis - The AI analysis object with ai_urgent and ai_important flags
  * @returns {string} The Eisenhower Matrix quadrant key
  */
-function determineEisenhowerQuadrant(categories) {
+function determineEisenhowerQuadrant(categories, analysis = null) {
   if (!categories || categories.length === 0) {
+    console.log(
+      "🎯 No categories provided - defaulting to NOT_URGENT_NOT_IMPORTANT"
+    );
     return "NOT_URGENT_NOT_IMPORTANT";
   }
 
-  let isUrgent = false;
-  let isImportant = false;
+  // Start with AI assessment as baseline
+  let isUrgent = analysis?.ai_urgent || false;
+  let isImportant = analysis?.ai_important || false;
+  const urgentCategories = [];
+  const importantCategories = [];
+
+  console.log(
+    `🎯 Analyzing categories for urgency/importance: [${categories.join(", ")}]`
+  );
+  console.log(`🎯 AI baseline: urgent=${isUrgent}, important=${isImportant}`);
 
   // Check each category's isUrgent and isImportant flags
   for (const category of categories) {
-    const labelConfig = CONFIG.LABELS[category];
+    // Try to find the category key - it might be a full label name or just the key
+    let categoryKey = category;
+    let labelConfig = CONFIG.LABELS[category];
+
+    // If not found, try to extract the key from the full label name
+    if (!labelConfig) {
+      categoryKey = findCategoryKeyFromLabelName(category);
+      if (categoryKey) {
+        labelConfig = CONFIG.LABELS[categoryKey];
+        console.log(
+          `   🔍 Extracted key "${categoryKey}" from label name "${category}"`
+        );
+      }
+    }
+
     if (labelConfig) {
-      if (labelConfig.isUrgent) isUrgent = true;
-      if (labelConfig.isImportant) isImportant = true;
+      // Override with TRUE values from labels (but don't override FALSE to TRUE from AI)
+      if (labelConfig.isUrgent) {
+        isUrgent = true;
+        urgentCategories.push(categoryKey);
+      }
+      if (labelConfig.isImportant) {
+        isImportant = true;
+        importantCategories.push(categoryKey);
+      }
+      console.log(
+        `   ${categoryKey}: urgent=${labelConfig.isUrgent}, important=${labelConfig.isImportant}`
+      );
+    } else {
+      console.warn(`⚠️ Category config not found: ${category}`);
     }
   }
 
-  // Determine quadrant based on flags
-  if (isUrgent && isImportant) {
-    return "URGENT_IMPORTANT";
-  } else if (!isUrgent && isImportant) {
-    return "NOT_URGENT_IMPORTANT";
-  } else if (isUrgent && !isImportant) {
-    return "URGENT_NOT_IMPORTANT";
-  } else {
-    return "NOT_URGENT_NOT_IMPORTANT";
+  // Log cumulative results
+  console.log(
+    `🎯 Cumulative analysis: urgent=${isUrgent}, important=${isImportant}`
+  );
+  if (urgentCategories.length > 0) {
+    console.log(`   Urgent categories: [${urgentCategories.join(", ")}]`);
   }
+  if (importantCategories.length > 0) {
+    console.log(`   Important categories: [${importantCategories.join(", ")}]`);
+  }
+
+  // Determine quadrant based on flags
+  let quadrant;
+  if (isUrgent && isImportant) {
+    quadrant = "URGENT_IMPORTANT";
+  } else if (!isUrgent && isImportant) {
+    quadrant = "NOT_URGENT_IMPORTANT";
+  } else if (isUrgent && !isImportant) {
+    quadrant = "URGENT_NOT_IMPORTANT";
+  } else {
+    quadrant = "NOT_URGENT_NOT_IMPORTANT";
+  }
+
+  console.log(`🎯 Final quadrant: ${quadrant}`);
+  return quadrant;
 }
 
 /**

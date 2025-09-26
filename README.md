@@ -141,7 +141,8 @@ An **open-source** intelligent Gmail automation system that uses ChatGPT to cate
 - **Automatic Labeling**: Creates and applies Gmail labels for easy organization
 - **Spam Detection**: Automatically identifies and handles spam/junk emails
 - **Inbox Zero**: Automatically archives processed emails
-- **Smart Reminders**: Creates calendar events for urgent tasks with 30-minute buffer time
+- **Smart Reminders**: Creates calendar events for urgent tasks with AI-suggested timing and proper duration
+- **Duplicate Prevention**: Intelligently avoids creating calendar events for existing calendar notifications
 - **Analytics & Reporting**: Generates processing reports and statistics
 
 ![Gmail Interface with Processed Emails](./images/screenshot.002.png)
@@ -707,6 +708,60 @@ switchToRealtime();    // Alias for enableRealtimeMode()
 switchToScheduled();   // Alias for enableScheduledMode()
 
 // Label management shortcuts
+```
+
+### Calendar and Reminder Functions
+
+#### `scheduleUrgentReminder(thread, analysis)`
+
+**Purpose**: Creates Google Calendar events for urgent and important emails  
+**Parameters**: 
+- `thread` - Gmail thread object
+- `analysis` - AI analysis results with calendar scheduling info  
+**What it does**:
+
+- Checks if calendar event creation should be ignored (for existing calendar events)
+- Uses AI-suggested timing when available
+- Creates calendar events with proper duration based on estimated time
+- Includes detailed event description with email summary and action items
+- Sets 5-minute popup reminder
+
+**Example**:
+```javascript
+// Automatically called for URGENT_IMPORTANT emails
+// Creates calendar event for "tomorrow 2pm" with 1-hour duration
+```
+
+#### `parseAISuggestedTime(suggestedTime)`
+
+**Purpose**: Parses AI-suggested time strings into Date objects  
+**Parameters**: `suggestedTime` - String like "tomorrow 2pm", "2025-09-28T14:00:00"  
+**Returns**: Date object  
+**What it does**:
+
+- Handles ISO format: "2025-09-28T14:00:00"
+- Handles specific times: "tomorrow 2pm", "Friday 3pm"
+- Handles day + time: "Monday 9am", "Friday 3pm"
+- Handles today + time: "today 4pm"
+- Handles urgent: "ASAP", "urgent"
+
+#### `parseEstimatedTime(estimatedTime)`
+
+**Purpose**: Parses estimated time strings into milliseconds for calendar event duration  
+**Parameters**: `estimatedTime` - String like "1 hour", "30 minutes", "2h"  
+**Returns**: Duration in milliseconds  
+**What it does**:
+
+- Handles full format: "1 hour", "2 hours", "30 minutes"
+- Handles short format: "1h", "2h", "30m", "45m"
+- Defaults to 15 minutes if parsing fails
+- Used to set proper calendar event duration
+
+**Examples**:
+```javascript
+parseEstimatedTime("1 hour")     // Returns 3600000ms (1 hour)
+parseEstimatedTime("30 minutes") // Returns 1800000ms (30 minutes)
+parseEstimatedTime("2h")         // Returns 7200000ms (2 hours)
 ```
 
 ## 🚨 Troubleshooting
