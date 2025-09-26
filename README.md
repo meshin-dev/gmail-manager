@@ -32,10 +32,95 @@ An **open-source** intelligent Gmail automation system that uses ChatGPT to cate
 
 ### 🎯 The Real Cost: Just ChatGPT API
 
-- **GPT-3.5-turbo**: ~$0.002 per email analysis
+- **GPT-4o-mini**: ~$0.002 per email analysis
 - **Monthly cost**: $5-15 for typical usage (500-1000 emails)
 - **No subscription fees, no vendor lock-in**
 - **Complete control over your data and processing**
+
+## 📊 Detailed API Costs & Limits
+
+### 🤖 ChatGPT API (OpenAI)
+
+**Cost**: $0.00015 per 1K input tokens, $0.0006 per 1K output tokens
+
+- **GPT-4o-mini**: ~$0.002 per email analysis
+- **Free tier**: $5 credit (expires after 3 months)
+- **Rate limits**: 3,500 requests/minute
+- **Monthly usage**: ~$5-15 for typical email volume
+
+### 📧 Gmail API (Google)
+
+**Cost**: **FREE** with generous limits
+
+- **Daily quota**: 1 billion quota units
+- **Per request cost**: 5 units (read), 100 units (write)
+- **Free tier**: Unlimited for personal use
+- **Rate limits**: 250 requests/second
+- **No monthly charges** for normal usage
+
+### 📊 Google Sheets API
+
+**Cost**: **FREE** with generous limits
+
+- **Daily quota**: 100 requests per 100 seconds per user
+- **Free tier**: Unlimited for personal use
+- **Rate limits**: 100 requests/100 seconds
+- **No monthly charges** for normal usage
+
+### 📅 Google Calendar API
+
+**Cost**: **FREE** with generous limits
+
+- **Daily quota**: 1 million requests
+- **Free tier**: Unlimited for personal use
+- **Rate limits**: 1,000 requests/second
+- **No monthly charges** for normal usage
+
+### 🔐 Google Apps Script
+
+**Cost**: **COMPLETELY FREE**
+
+- **Execution time**: 6 minutes per execution (free tier)
+- **Triggers**: Unlimited time-based triggers
+- **Storage**: 1GB for PropertiesService
+- **No monthly charges** ever
+
+### 💰 Total Monthly Cost Breakdown
+
+| Service | Free Tier | Paid Cost | Your Usage |
+|---------|-----------|-----------|------------|
+| **Gmail API** | ✅ Unlimited | $0 | $0 |
+| **Sheets API** | ✅ Unlimited | $0 | $0 |
+| **Calendar API** | ✅ Unlimited | $0 | $0 |
+| **Apps Script** | ✅ Unlimited | $0 | $0 |
+| **ChatGPT API** | $5 credit | ~$5-15/month | **Only cost** |
+
+**Total Monthly Cost: $5-15** (only ChatGPT API)
+
+### 📈 Cost Scaling Examples
+
+| Emails/Day | ChatGPT Cost/Month | Total Cost/Month |
+|------------|-------------------|------------------|
+| 10 emails | $2 | $2 |
+| 50 emails | $8 | $8 |
+| 100 emails | $15 | $15 |
+| 500 emails | $75 | $75 |
+
+### 🆓 Free Tier Benefits
+
+- **Google APIs**: Completely free for personal use
+- **Apps Script**: No execution limits for normal usage
+- **Gmail**: Unlimited email processing
+- **Sheets**: Unlimited report generation
+- **Calendar**: Unlimited reminder creation
+
+### 💡 Cost Optimization Tips
+
+1. **Use GPT-4o-mini**: Cheapest model with excellent results
+2. **Batch processing**: Process multiple emails in one API call
+3. **Smart filtering**: Skip obvious spam without AI analysis
+4. **Caching**: Store analysis results to avoid re-processing
+5. **Free tier**: Start with $5 OpenAI credit (3 months free)
 
 ### Why Commercial Platforms Are Expensive
 
@@ -56,7 +141,7 @@ An **open-source** intelligent Gmail automation system that uses ChatGPT to cate
 - **Automatic Labeling**: Creates and applies Gmail labels for easy organization
 - **Spam Detection**: Automatically identifies and handles spam/junk emails
 - **Inbox Zero**: Automatically archives processed emails
-- **Smart Reminders**: Creates calendar events for urgent tasks
+- **Smart Reminders**: Creates calendar events for urgent tasks with 30-minute buffer time
 - **Analytics & Reporting**: Generates processing reports and statistics
 
 ### Open-Source Advantages
@@ -599,9 +684,11 @@ That's it! Your Gmail will now be automatically organized.
 **Usage**: `scheduleUrgentReminder(thread, analysis)`  
 **What it does**:
 
-- Creates Google Calendar events
-- Sets 30-minute reminders
-- Handles calendar API errors
+- Creates Google Calendar events for urgent + important emails
+- Sets 30-minute buffer time from execution (gives you time to react)
+- Includes detailed email information and action items
+- Sets 5-minute popup reminder before the event
+- Handles calendar API errors gracefully
 
 #### `saveReportToSheets(report)`
 
@@ -883,14 +970,12 @@ That's it! Your Gmail will now be automatically organized.
 - System labels (Gmail built-in labels)
 - Email counts for each category
 
-
 **Purpose**: Tests the hardcoded label system  
 **What it does**:
 
 - Shows hardcoded label names
 - Demonstrates the numbering system
 - Verifies label creation works correctly
-
 
 **Purpose**: Shows available number slots for new labels  
 **What it displays**:
@@ -907,9 +992,11 @@ That's it! Your Gmail will now be automatically organized.
 **Parameters**: `thread` - Gmail thread, `analysis` - Analysis with deadline info  
 **What it does**:
 
-- Creates Google Calendar events
-- Sets appropriate reminders
-- Links back to email
+- Creates Google Calendar events for urgent + important emails
+- Sets 30-minute buffer time from execution (gives you time to react)
+- Includes detailed email information and action items
+- Sets 5-minute popup reminder before the event
+- Links back to original email
 
 #### `sendErrorNotification(error)`
 
@@ -950,7 +1037,8 @@ MAX_EMAILS_PER_RUN: 25, // Reduce from 50
 #### "Gmail API has not been used" Error
 
 **Cause**: Gmail API not enabled for your project  
-**Solution**: 
+**Solution**:
+
 1. Run `showGmailAPISetupInstructions()` for detailed setup
 2. Or set colors manually in Gmail Settings > Labels
 3. Run `checkGmailAPIStatus()` to verify API availability
@@ -958,7 +1046,8 @@ MAX_EMAILS_PER_RUN: 25, // Reduce from 50
 #### "Label color is not on the allowed color palette" Error
 
 **Cause**: Using colors not allowed by Gmail API  
-**Solution**: 
+**Solution**:
+
 1. Run `showGmailAllowedColors()` to see compatible colors
 2. Update color names in CONFIG to use allowed colors only
 3. Use colors like: red, orange, yellow, green, blue, purple, pink, gray, black, white
@@ -966,7 +1055,8 @@ MAX_EMAILS_PER_RUN: 25, // Reduce from 50
 #### "Systematic Error" - Script Stops After First Error
 
 **Cause**: Error that will repeat for all labels (e.g., API not enabled, wrong colors)  
-**Solution**: 
+**Solution**:
+
 1. Run `testSingleLabelColor()` to test one label safely
 2. Fix the error shown in the test
 3. Run `updateLabelColors()` again after fixing the error

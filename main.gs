@@ -307,10 +307,8 @@ function applyPriorityActions(thread, analysis, quadrant) {
       thread.markImportant();
       // Note: Gmail API doesn't support programmatic starring
       // Users can manually star important emails
-      // Can send notification to phone
-      if (analysis.deadline) {
-        scheduleUrgentReminder(thread, analysis);
-      }
+      // Create calendar reminder for all urgent + important emails
+      scheduleUrgentReminder(thread, analysis);
       break;
 
     case 2: // 🟠 Not Urgent + Important - plan
@@ -347,22 +345,38 @@ function scheduleUrgentReminder(thread, analysis) {
   try {
     // Create reminder in Google Calendar
     const calendar = CalendarApp.getDefaultCalendar();
-    const reminderTime = new Date(Date.now() + 30 * 60 * 1000); // In 30 minutes
+    
+    // Set reminder time to 30+ minutes from now to give buffer time
+    const now = new Date();
+    const reminderTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
+    const endTime = new Date(reminderTime.getTime() + 15 * 60 * 1000); // 15-minute event
 
-    calendar.createEvent(
+    // Create the calendar event
+    const event = calendar.createEvent(
       `🔴 URGENT: ${thread.getFirstMessageSubject()}`,
       reminderTime,
-      new Date(reminderTime.getTime() + 15 * 60 * 1000), // 15 minutes
+      endTime,
       {
-        description: `${analysis.summary}\n\nAction: ${
-          analysis.suggested_action
-        }\nEmail: ${thread.getPermalink()}`,
+        description: `URGENT EMAIL REMINDER\n\n` +
+          `Summary: ${analysis.summary || 'No summary available'}\n` +
+          `Action: ${analysis.suggested_action || 'Review and take action'}\n` +
+          `Deadline: ${analysis.deadline || 'ASAP'}\n` +
+          `Categories: ${analysis.categories.join(', ')}\n` +
+          `Email Link: ${thread.getPermalink()}\n\n` +
+          `This is an automated reminder for an urgent and important email.`,
+        location: 'Gmail Inbox',
+        guests: [] // No guests for personal reminders
       }
     );
 
-    console.log("⏰ Created reminder for urgent email");
+    // Set reminder to notify 5 minutes before the event
+    event.addPopupReminder(5);
+    
+    console.log(`⏰ Created urgent reminder for: ${thread.getFirstMessageSubject()}`);
+    console.log(`📅 Reminder scheduled for: ${reminderTime.toLocaleString()}`);
   } catch (error) {
-    console.error("❌ Error creating reminder:", error);
+    console.error("❌ Error creating urgent reminder:", error);
+    console.error("📝 Make sure Google Calendar API is enabled");
   }
 }
 
