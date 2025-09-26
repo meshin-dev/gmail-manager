@@ -371,6 +371,52 @@ That's it! Your Gmail will now be automatically organized.
 
 ## 📚 Function Reference
 
+## 🚀 **START HERE: Main Setup Function**
+
+### `setup()` - **THE MAIN FUNCTION YOU NEED**
+
+**🎯 Purpose**: Complete system setup and configuration - **SAFE TO RUN MULTIPLE TIMES**  
+**📋 Usage**: `setup()`  
+**⚡ What it does**:
+
+1. **📅 Initializes processing date** (prevents processing old emails)
+2. **🧹 Cleans up incorrect labels** (removes any labels that don't match our system)
+3. **🏷️ Creates all labels** with proper hardcoded numbering (001:, 010:, 020:, etc.)
+4. **🎨 Updates label colors** (if Gmail API is available)
+5. **⚙️ Sets up automatic triggers** for email processing
+6. **✅ Validates the entire system**
+
+**🔄 Safe to Re-run**: This function is designed to be **completely safe** to run multiple times. It will:
+- ✅ Skip already created labels
+- ✅ Update existing labels if needed
+- ✅ Clean up any inconsistencies
+- ✅ Reset triggers properly
+- ✅ Never delete your emails or data
+
+**🎯 When to use**:
+- **First time setup**: Run `setup()` to get everything configured
+- **After configuration changes**: Run `setup()` to apply new settings
+- **Troubleshooting**: Run `setup()` to fix any label or trigger issues
+- **System maintenance**: Run `setup()` periodically to ensure everything is working
+
+**📝 Example**:
+```javascript
+// Run this to set up your entire system
+setup();
+```
+
+**🔧 Alternative: `completeSetup()`** - For comprehensive setup with testing:
+- Includes `setup()` + system validation + testing
+- Use this for first-time installation
+- More thorough but takes longer
+
+```javascript
+// For complete first-time setup with testing
+completeSetup();
+```
+
+---
+
 ### Main Processing Functions
 
 #### `processLifeEmails()`
