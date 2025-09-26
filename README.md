@@ -391,6 +391,7 @@ That's it! Your Gmail will now be automatically organized.
 6. **✅ Validates the entire system**
 
 **🔄 Safe to Re-run**: This function is designed to be **completely safe** to run multiple times. It will:
+
 - ✅ Skip already created labels
 - ✅ Update existing labels if needed
 - ✅ Clean up any inconsistencies
@@ -398,18 +399,21 @@ That's it! Your Gmail will now be automatically organized.
 - ✅ Never delete your emails or data
 
 **🎯 When to use**:
+
 - **First time setup**: Run `setup()` to get everything configured
 - **After configuration changes**: Run `setup()` to apply new settings
 - **Troubleshooting**: Run `setup()` to fix any label or trigger issues
 - **System maintenance**: Run `setup()` periodically to ensure everything is working
 
 **📝 Example**:
+
 ```javascript
 // Run this to set up your entire system
 setup();
 ```
 
 **🔧 Alternative: `completeSetup()`** - For comprehensive setup with testing:
+
 - Includes `setup()` + system validation + testing
 - Use this for first-time installation
 - More thorough but takes longer
@@ -718,7 +722,8 @@ switchToScheduled();   // Alias for enableScheduledMode()
 #### `scheduleUrgentReminder(thread, analysis)`
 
 **Purpose**: Creates Google Calendar events for urgent and important emails  
-**Parameters**: 
+**Parameters**:
+
 - `thread` - Gmail thread object
 - `analysis` - AI analysis results with calendar scheduling info  
 **What it does**:
@@ -730,12 +735,14 @@ switchToScheduled();   // Alias for enableScheduledMode()
 - Sets 5-minute popup reminder
 
 **Example**:
+
 ```javascript
 // Automatically called for URGENT_IMPORTANT emails
 // Creates calendar event for "tomorrow 2pm" with 1-hour duration
 ```
 
 ![Google Calendar Event Created](./images/screenshot.004.png)
+
 *Google Calendar event automatically created with "🔴 URGENT: Should add birthdays" title and "2–3PM" timing based on AI analysis*
 
 #### `parseAISuggestedTime(suggestedTime)`
@@ -764,6 +771,7 @@ switchToScheduled();   // Alias for enableScheduledMode()
 - Used to set proper calendar event duration
 
 **Examples**:
+
 ```javascript
 parseEstimatedTime("1 hour")     // Returns 3600000ms (1 hour)
 parseEstimatedTime("30 minutes") // Returns 1800000ms (30 minutes)
