@@ -144,6 +144,9 @@ An **open-source** intelligent Gmail automation system that uses ChatGPT to cate
 - **Smart Reminders**: Creates calendar events for urgent tasks with 30-minute buffer time
 - **Analytics & Reporting**: Generates processing reports and statistics
 
+![Gmail Interface with Processed Emails](./images/screenshot.002.png)
+*Gmail interface showing processed emails with "010: Requires Action" and "700: Processed" labels applied automatically*
+
 ### Open-Source Advantages
 
 - **🔓 Completely Free**: No licensing fees or subscriptions
@@ -253,6 +256,9 @@ The system uses **hardcoded number prefixes** for deterministic Gmail sorting:
 3. **📋 Perfect Spacing**: 5 distance for critical categories, 10+ for others
 4. **🚫 No Conflicts**: Each label has a unique, well-spaced number
 5. **🔮 Future-Proof**: Massive space for new labels and categories
+
+![Eisenhower Matrix and Action Labels](./images/screenshot.001.png)
+*Eisenhower Matrix labels (001-004) and action labels (010-025) with proper numbering and color coding for perfect Gmail sorting*
 
 ### Adding New Labels
 
