@@ -87,3 +87,36 @@ function testLifeManagementSystem() {
     return false;
   }
 }
+
+/**
+ * Test function to manually send a daily report email.
+ * @returns {void}
+ */
+function testDailyReport() {
+  console.log("🧪 Testing daily report email...");
+
+  // Create a test report
+  const testReport = {
+    date: new Date().toISOString().split("T")[0],
+    processed: 132,
+    by_category: {
+      "150: 👨‍👩‍👧‍👦 Family": 27,
+      "080: 💼 Work": 21,
+      "090: 🏢 Business": 22,
+      "070: 💳 Debt": 20,
+      "100: 📈 Career": 15,
+      "800: 🗑️ Spam": 4,
+      "020: 📅 To Plan": 8,
+      "230: 🔒 Security": 9,
+    },
+    by_priority: {
+      URGENT_IMPORTANT: 45,
+      NOT_URGENT_IMPORTANT: 79,
+      NOT_URGENT_NOT_IMPORTANT: 8,
+    },
+  };
+
+  // Send the test report
+  sendDailyReportEmail(testReport);
+  console.log("✅ Test daily report email sent!");
+}

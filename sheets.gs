@@ -3,6 +3,8 @@
  * @returns {Object} Report object with processing statistics
  */
 function generateProcessingReport() {
+  console.log("📊 Starting generateProcessingReport...");
+
   const today = new Date();
   const report = {
     date: today.toISOString().split("T")[0],
@@ -11,8 +13,12 @@ function generateProcessingReport() {
     by_priority: {},
   };
 
+  console.log("📊 Initial report object:", report);
+
   // Get session statistics from PropertiesService
+  console.log("📊 Getting session statistics...");
   const sessionStats = getSessionStatistics();
+  console.log("📊 Session stats:", sessionStats);
 
   // Use session statistics if available, otherwise fall back to label counts
   if (sessionStats && sessionStats.processed > 0) {
@@ -39,8 +45,9 @@ function generateProcessingReport() {
 
   // Save report to Google Sheets (optional)
   saveReportToSheets(report);
-}
 
+  // Note: Daily report emails are sent via scheduled trigger, not after every processing session
+}
 
 /**
  * Saves the processing report to a Google Sheets spreadsheet.
@@ -81,5 +88,79 @@ function saveReportToSheets(report) {
     ]);
   } catch (error) {
     console.error("❌ Error saving report:", error);
+  }
+}
+
+/**
+ * Retrieves processing report from Google Sheets for a specific date.
+ * @param {string} date - The date to retrieve report for (YYYY-MM-DD format)
+ * @returns {Object} Report object with processing statistics
+ */
+function getReportFromSheets(date) {
+  try {
+    const spreadsheetId = getSecret("SPREADSHEET_ID");
+    if (!spreadsheetId) {
+      console.log("📊 No spreadsheet ID found, using empty report");
+      return {
+        date: date,
+        processed: 0,
+        by_category: {},
+        by_priority: {},
+      };
+    }
+
+    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = spreadsheet.getActiveSheet();
+
+    if (!sheet) {
+      console.log("📊 No active sheet found, using empty report");
+      return {
+        date: date,
+        processed: 0,
+        by_category: {},
+        by_priority: {},
+      };
+    }
+
+    const data = sheet.getDataRange().getValues();
+    console.log(`📊 Total rows in sheet: ${data.length}`);
+    console.log(`📊 Last few rows:`, data.slice(-3));
+
+    // Get the LAST row (most recent data)
+    const lastRow = data[data.length - 1];
+    console.log(`📊 Last row data:`, lastRow);
+    const lastRowDate = lastRow[0];
+    const lastRowDateString =
+      lastRowDate instanceof Date
+        ? `${lastRowDate.getFullYear()}-${String(
+            lastRowDate.getMonth() + 1
+          ).padStart(2, "0")}-${String(lastRowDate.getDate()).padStart(2, "0")}`
+        : lastRowDate;
+
+    // Check if last row is from today
+    console.log(
+      `📊 Comparing dates: lastRowDateString="${lastRowDateString}" vs date="${date}"`
+    );
+    if (lastRowDateString !== date) {
+      console.log(
+        `📊 Last row date (${lastRowDateString}) is not today (${date}), not sending email`
+      );
+      return null;
+    }
+
+    return {
+      date: lastRow[0],
+      processed: lastRow[1],
+      by_category: JSON.parse(lastRow[2] || "{}"),
+      by_priority: JSON.parse(lastRow[3] || "{}"),
+    };
+  } catch (error) {
+    console.error("❌ Error retrieving report from sheets:", error);
+    return {
+      date: date,
+      processed: 0,
+      by_category: {},
+      by_priority: {},
+    };
   }
 }

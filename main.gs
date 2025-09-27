@@ -22,7 +22,7 @@ function processEmails(mode = "batch") {
 
     if (mode === "realtime") {
       // Real-time processing: only unread emails not already processed
-      searchQuery = "in:inbox is:unread";
+      searchQuery = "in:inbox";
       try {
         const processedLabelName = CONFIG.LABELS.PROCESSED.name;
         const processedLabel = GmailApp.getUserLabelByName(processedLabelName);
@@ -30,7 +30,9 @@ function processEmails(mode = "batch") {
           // Use proper Gmail search syntax to exclude processed emails
           // Gmail search requires quotes around label names with spaces/special chars
           searchQuery += ` -label:"${processedLabelName}"`;
-          console.log(`🔍 Excluding processed emails with label: ${processedLabelName}`);
+          console.log(
+            `🔍 Excluding processed emails with label: ${processedLabelName}`
+          );
         }
       } catch (e) {
         console.log("📋 PROCESSED label doesn't exist yet, using basic search");
@@ -47,7 +49,9 @@ function processEmails(mode = "batch") {
           // Use proper Gmail search syntax to exclude processed emails
           // Gmail search requires quotes around label names with spaces/special chars
           searchQuery += ` -label:"${processedLabelName}"`;
-          console.log(`🔍 Excluding processed emails with label: ${processedLabelName}`);
+          console.log(
+            `🔍 Excluding processed emails with label: ${processedLabelName}`
+          );
         }
       } catch (e) {
         console.log("📋 PROCESSED label doesn't exist yet, using basic search");
@@ -68,10 +72,18 @@ function processEmails(mode = "batch") {
         // Check if email is already processed before processing
         const processedLabelName = CONFIG.LABELS.PROCESSED.name;
         const processedLabel = GmailApp.getUserLabelByName(processedLabelName);
-        const isAlreadyProcessed = processedLabel && thread.getLabels().some(label => label.getName() === processedLabelName);
-        
+        const isAlreadyProcessed =
+          processedLabel &&
+          thread
+            .getLabels()
+            .some((label) => label.getName() === processedLabelName);
+
         if (isAlreadyProcessed) {
-          console.log(`⏭️ Skipping already processed email: ${thread.getFirstMessageSubject().substring(0, 50)}...`);
+          console.log(
+            `⏭️ Skipping already processed email: ${thread
+              .getFirstMessageSubject()
+              .substring(0, 50)}...`
+          );
           continue;
         }
 
@@ -102,7 +114,7 @@ function processEmails(mode = "batch") {
     }
 
     console.log("✅ Processing completed");
-    generateProcessingReport();
+    // Note: Daily reports are generated via scheduled trigger, not after every processing session
   } catch (error) {
     console.error("❌ Error during processing:", error);
     sendErrorNotification(error.toString());
@@ -425,4 +437,89 @@ function switchToRealtime() {
  */
 function switchToScheduled() {
   enableScheduledMode();
+}
+
+/**
+ * Sends daily processing report via email.
+ * @param {Object} report - Optional report object, if not provided will get from sheets
+ * @returns {void}
+ */
+function sendDailyReportEmail(report = null) {
+  try {
+    const userEmail = Session.getActiveUser().getEmail();
+    const today = new Date();
+    const todayString = today.toISOString().split("T")[0];
+    const subject = `Daily Email Processing Report - ${todayString}`;
+
+    // Use provided report or get from sheets
+    if (!report) {
+      report = getReportFromSheets(todayString);
+      console.log("📧 Report from sheets:", report);
+
+      if (!report) {
+        console.log("📧 No report data for today, skipping email");
+        return;
+      }
+    }
+
+    console.log("📧 Generated report:", report);
+
+    // Format the report data
+    let emailBody = `DAILY EMAIL PROCESSING REPORT\n`;
+    emailBody += `Date: ${report.date}\n`;
+    emailBody += `Total Processed: ${report.processed} emails\n\n`;
+
+    // Add category breakdown
+    if (Object.keys(report.by_category).length > 0) {
+      emailBody += `BY CATEGORY:\n`;
+      Object.entries(report.by_category)
+        .sort(([, a], [, b]) => b - a) // Sort by count descending
+        .forEach(([category, count]) => {
+          // Remove emojis and clean up category name
+          const cleanCategory = category
+            .replace(/[^\x00-\x7F]/g, "")
+            .replace(/^\d+:\s*/, "")
+            .trim();
+          emailBody += `   ${cleanCategory}: ${count}\n`;
+        });
+      emailBody += `\n`;
+    }
+
+    // Add priority breakdown
+    if (Object.keys(report.by_priority).length > 0) {
+      emailBody += `BY PRIORITY:\n`;
+      Object.entries(report.by_priority)
+        .sort(([, a], [, b]) => b - a) // Sort by count descending
+        .forEach(([priority, count]) => {
+          emailBody += `   ${priority}: ${count}\n`;
+        });
+      emailBody += `\n`;
+    }
+
+    // Add summary insights
+    emailBody += `SUMMARY:\n`;
+    if (report.processed > 0) {
+      const urgentImportant = report.by_priority["URGENT_IMPORTANT"] || 0;
+      const notUrgentImportant =
+        report.by_priority["NOT_URGENT_IMPORTANT"] || 0;
+      const totalImportant = urgentImportant + notUrgentImportant;
+
+      emailBody += `   • ${urgentImportant} urgent + important emails (immediate action needed)\n`;
+      emailBody += `   • ${notUrgentImportant} important but not urgent emails (planning)\n`;
+      emailBody += `   • ${totalImportant} total important emails (${Math.round(
+        (totalImportant / report.processed) * 100
+      )}% of all emails)\n`;
+    } else {
+      emailBody += `   • No emails processed today\n`;
+    }
+
+    emailBody += `\nGenerated by Gmail Life Management System\n`;
+    emailBody += `Report includes both real-time and batch processed emails\n`;
+
+    // Send the email
+    GmailApp.sendEmail(userEmail, subject, emailBody);
+    console.log(`📧 Daily report email sent to ${userEmail}`);
+  } catch (error) {
+    console.error("❌ Error sending daily report email:", error);
+  }
 }
