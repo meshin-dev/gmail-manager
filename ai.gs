@@ -19,7 +19,7 @@ ${configContext}
 EMAIL TO ANALYZE:
 Subject: ${emailData.subject}
 From: ${emailData.from || emailData.sender}
-To: ${emailData.to || 'Not specified'}
+To: ${emailData.to || "Not specified"}
 Sender: ${emailData.sender}
 Text: ${emailData.body.substring(0, 2000)}
 
@@ -112,14 +112,21 @@ CRITICAL ANALYSIS INSTRUCTIONS:
      * "sometime this week" (too vague)
      * "when convenient" (too vague)
 
-7. **LANGUAGE ANALYSIS**:
 6. **TASK CREATION ANALYSIS** (for self-sent emails):
    - If email is self-sent and contains actionable items, consider creating a Google Task
    - Look for task indicators: "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
    - Russian task indicators: "нужно", "должен", "напомни", "не забудь", "задача", "делать"
    - Create task if email contains specific actionable items that need to be done
    - Task title should be clear and actionable (e.g., "Add family birthdays to calendar")
-   - Task notes should include context and details from the email
+   - **CRITICAL: Task notes must preserve EVERY detail from the original email with grammar/spelling corrections:**
+     * Include the COMPLETE original email content with corrected grammar and spelling
+     * Fix any typos, grammatical errors, or unclear sentences
+     * Include ALL names, dates, times, locations, amounts, phone numbers
+     * Include ALL specific requirements, deadlines, and constraints
+     * Include the original subject line (also corrected if needed)
+     * Include any references to attachments, links, or external resources
+     * NEVER summarize, condense, or lose any information
+     * Format: "ORIGINAL EMAIL (CORRECTED):\nSubject: [corrected subject]\nContent: [corrected email body with proper grammar and spelling]\n\nTASK CONTEXT: [additional context]"
    - Set due date if mentioned in email, otherwise leave empty
    - Priority: high for urgent+important, normal for important, low for others
 
@@ -154,7 +161,7 @@ Return JSON with precise analysis:
   "task_creation": {
     "should_create_task": true|false,
     "task_title": "specific task title if task should be created",
-    "task_notes": "detailed task description and context",
+    "task_notes": "ORIGINAL EMAIL (CORRECTED):\nSubject: [corrected subject]\nContent: [corrected email body with proper grammar and spelling, preserving ALL details]\n\nTASK CONTEXT: [any additional context]",
     "task_due_date": "specific due date if mentioned (e.g., '2025-09-28', 'tomorrow', 'next Friday')",
     "task_priority": "high|normal|low based on urgency and importance"
   }
@@ -199,7 +206,15 @@ TASK CREATION ASSESSMENT:
   * Russian indicators: "нужно", "должен", "напомни", "не забудь", "задача", "делать"
   * Has specific actionable items that need to be completed
 - task_title: Create clear, actionable title (e.g., "Add family birthdays to calendar")
-- task_notes: Include context and details from the email
+- task_notes: CRITICAL - Preserve ALL details from the original email with grammar/spelling corrections:
+  * Include the FULL original email content with corrected grammar and spelling
+  * Fix any typos, grammatical errors, or unclear sentences
+  * Include ALL context, deadlines, specific requirements
+  * Include ALL names, dates, locations, amounts, or other specific details
+  * Include the original subject line (also corrected if needed)
+  * Include any attachments or references mentioned
+  * NEVER summarize or lose any information from the original email
+  * Format: "ORIGINAL EMAIL (CORRECTED):\nSubject: [corrected subject]\nContent: [corrected email body with proper grammar and spelling]\n\nTASK CONTEXT: [additional context if needed]"
 - task_due_date: Set if mentioned in email, otherwise leave empty
 - task_priority: Set based on urgency/importance (high for urgent+important, normal for important, low for others)
 
@@ -219,7 +234,7 @@ CRITICAL: CALENDAR TIME FORMAT REQUIREMENTS:
       {
         role: "system",
         content:
-          "You are an expert email categorization AI with deep understanding of urgency, importance, life categories, and advanced spam detection. You excel at identifying spam, phishing, and fraud attempts across multiple languages. CRITICAL: You understand that self-sent emails (where From and To are the same) are NEVER spam - they are personal reminders or notes that should be analyzed for regular importance/urgency. You understand that spam emails should never be considered urgent or important, regardless of their claims. You always provide detailed reasoning for your decisions and focus on the PRIMARY category that best fits the email content. Your first priority is checking if an email is self-sent, then spam detection for non-self-sent emails.",
+          "You are an expert email categorization AI with deep understanding of urgency, importance, life categories, and advanced spam detection. You excel at identifying spam, phishing, and fraud attempts across multiple languages. CRITICAL: You understand that self-sent emails (where From and To are the same) are NEVER spam - they are personal reminders or notes that should be analyzed for regular importance/urgency. You understand that spam emails should never be considered urgent or important, regardless of their claims. You always provide detailed reasoning for your decisions and focus on the PRIMARY category that best fits the email content. Your first priority is checking if an email is self-sent, then spam detection for non-self-sent emails. TASK CREATION CRITICAL RULE: When creating tasks from self-sent emails, you MUST preserve EVERY detail from the original email in the task_notes field while fixing grammar and spelling errors. Include the complete original email content with corrected grammar and spelling, all names, dates, amounts, locations, phone numbers, and any other specific details. Fix any typos, grammatical errors, or unclear sentences. NEVER summarize or lose any information - the task notes should be as detailed as the original email itself but with proper grammar and spelling.",
       },
       {
         role: "user",
@@ -674,7 +689,9 @@ function testAIAnalysis() {
       if (analysis.task_creation && analysis.task_creation.should_create_task) {
         console.log(`📝 Task creation: ${analysis.task_creation.task_title}`);
         console.log(`📋 Task notes: ${analysis.task_creation.task_notes}`);
-        console.log(`📅 Due date: ${analysis.task_creation.task_due_date || 'Not set'}`);
+        console.log(
+          `📅 Due date: ${analysis.task_creation.task_due_date || "Not set"}`
+        );
         console.log(`⚡ Priority: ${analysis.task_creation.task_priority}`);
       }
     } else {
