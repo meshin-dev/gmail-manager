@@ -113,6 +113,17 @@ CRITICAL ANALYSIS INSTRUCTIONS:
      * "when convenient" (too vague)
 
 7. **LANGUAGE ANALYSIS**:
+6. **TASK CREATION ANALYSIS** (for self-sent emails):
+   - If email is self-sent and contains actionable items, consider creating a Google Task
+   - Look for task indicators: "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
+   - Russian task indicators: "нужно", "должен", "напомни", "не забудь", "задача", "делать"
+   - Create task if email contains specific actionable items that need to be done
+   - Task title should be clear and actionable (e.g., "Add family birthdays to calendar")
+   - Task notes should include context and details from the email
+   - Set due date if mentioned in email, otherwise leave empty
+   - Priority: high for urgent+important, normal for important, low for others
+
+7. **LANGUAGE ANALYSIS**:
    - Russian text: "Важное напоминание себе" = "Important reminder to myself"
    - "Нужно забить все дни рождения" = "Need to enter all birthdays"
    - "родственников и друзей" = "relatives and friends" = FAMILY category
@@ -139,6 +150,13 @@ Return JSON with precise analysis:
     "scheduling_reason": "explanation of why this timing was chosen",
     "is_ai_suggested": true|false,
     "ignoreCalendarEventCreation": true|false
+  },
+  "task_creation": {
+    "should_create_task": true|false,
+    "task_title": "specific task title if task should be created",
+    "task_notes": "detailed task description and context",
+    "task_due_date": "specific due date if mentioned (e.g., '2025-09-28', 'tomorrow', 'next Friday')",
+    "task_priority": "high|normal|low based on urgency and importance"
   }
 }
 
@@ -173,6 +191,17 @@ CALENDAR EVENT CREATION ASSESSMENT:
   * Any email that mentions "already scheduled", "in your calendar", "event created"
   * Vague timing like "sometime this week", "when convenient", "let's meet"
 - Set to false only if the email clearly states a FINAL, specific date/time for a NEW task/event AND is not spam
+
+TASK CREATION ASSESSMENT:
+- should_create_task: Set to true if the email is:
+  * Self-sent (From = To) AND contains actionable items
+  * Contains task indicators: "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
+  * Russian indicators: "нужно", "должен", "напомни", "не забудь", "задача", "делать"
+  * Has specific actionable items that need to be completed
+- task_title: Create clear, actionable title (e.g., "Add family birthdays to calendar")
+- task_notes: Include context and details from the email
+- task_due_date: Set if mentioned in email, otherwise leave empty
+- task_priority: Set based on urgency/importance (high for urgent+important, normal for important, low for others)
 
 CRITICAL: CALENDAR TIME FORMAT REQUIREMENTS:
 - ALWAYS return specific, parseable dates in suggested_time
@@ -617,6 +646,13 @@ function testAIAnalysis() {
       to: "user@example.com",
       body: "Need to add all family birthdays to calendar this weekend. This is urgent and important for family relationships.",
     },
+    {
+      subject: "Task: Review project proposal",
+      sender: "user@example.com",
+      from: "user@example.com",
+      to: "user@example.com",
+      body: "Don't forget to review the project proposal by tomorrow. This is important for work and needs to be done before the meeting.",
+    },
   ];
 
   for (const email of testEmails) {
@@ -634,6 +670,12 @@ function testAIAnalysis() {
         console.log(
           `⚠️ Spam indicators: ${analysis.spam_indicators.join(", ")}`
         );
+      }
+      if (analysis.task_creation && analysis.task_creation.should_create_task) {
+        console.log(`📝 Task creation: ${analysis.task_creation.task_title}`);
+        console.log(`📋 Task notes: ${analysis.task_creation.task_notes}`);
+        console.log(`📅 Due date: ${analysis.task_creation.task_due_date || 'Not set'}`);
+        console.log(`⚡ Priority: ${analysis.task_creation.task_priority}`);
       }
     } else {
       console.log("❌ Analysis failed");

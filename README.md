@@ -76,6 +76,15 @@ An **open-source** intelligent Gmail automation system that uses ChatGPT to cate
 - **Rate limits**: 1,000 requests/second
 - **No monthly charges** for normal usage
 
+### 📋 Google Tasks API
+
+**Cost**: **FREE** with generous limits
+
+- **Daily quota**: 1 million requests
+- **Free tier**: Unlimited for personal use
+- **Rate limits**: 1,000 requests/second
+- **No monthly charges** for normal usage
+
 ### 🔐 Google Apps Script
 
 **Cost**: **COMPLETELY FREE**
@@ -92,6 +101,7 @@ An **open-source** intelligent Gmail automation system that uses ChatGPT to cate
 | **Gmail API** | ✅ Unlimited | $0 | $0 |
 | **Sheets API** | ✅ Unlimited | $0 | $0 |
 | **Calendar API** | ✅ Unlimited | $0 | $0 |
+| **Tasks API** | ✅ Unlimited | $0 | $0 |
 | **Apps Script** | ✅ Unlimited | $0 | $0 |
 | **ChatGPT API** | $5 credit | ~$5-15/month | **Only cost** |
 
@@ -142,6 +152,7 @@ An **open-source** intelligent Gmail automation system that uses ChatGPT to cate
 - **Spam Detection**: Automatically identifies and handles spam/junk emails
 - **Inbox Zero**: Automatically archives processed emails
 - **Smart Reminders**: Creates calendar events for urgent tasks with AI-suggested timing and proper duration
+- **Google Tasks Integration**: Automatically creates tasks from self-sent emails with actionable items
 - **Duplicate Prevention**: Intelligently avoids creating calendar events for existing calendar notifications
 - **Analytics & Reporting**: Generates processing reports and statistics
 
@@ -777,6 +788,75 @@ parseEstimatedTime("1 hour")     // Returns 3600000ms (1 hour)
 parseEstimatedTime("30 minutes") // Returns 1800000ms (30 minutes)
 parseEstimatedTime("2h")         // Returns 7200000ms (2 hours)
 ```
+
+### Google Tasks Integration
+
+#### `createGoogleTask(analysis, emailSubject)`
+
+**Purpose**: Creates Google Tasks from self-sent emails with actionable items  
+**Parameters**:
+
+- `analysis` - AI analysis results with task_creation data
+- `emailSubject` - Email subject for context  
+**What it does**:
+
+- Automatically detects self-sent emails (From = To)
+- Identifies actionable items using AI analysis
+- Creates Google Tasks with proper titles, notes, and due dates
+- Sets priority based on urgency and importance
+- Uses the default Google Tasks list
+
+**Task Creation Logic**:
+
+- **Self-sent emails only**: Only creates tasks for emails sent to yourself
+- **Actionable content**: Looks for task indicators like "need to", "should", "must", "remind me to"
+- **Russian support**: Recognizes "нужно", "должен", "напомни", "не забудь", "задача"
+- **Smart titles**: Creates clear, actionable task titles
+- **Due dates**: Parses due dates from email content ("tomorrow", "next Friday", "2025-09-28")
+- **Priority levels**: High for urgent+important, normal for important, low for others
+
+**Example**:
+
+```javascript
+// Email: "Need to add family birthdays to calendar this weekend"
+// Creates task: "Add family birthdays to calendar"
+// Due date: This weekend
+// Priority: High (if urgent+important)
+```
+
+#### `parseTaskDueDate(dueDateString)`
+
+**Purpose**: Parses task due date strings into ISO date format  
+**Parameters**: `dueDateString` - String like "tomorrow", "next Friday", "2025-09-28"  
+**Returns**: ISO date string (YYYY-MM-DD) or null  
+**What it does**:
+
+- Handles relative dates: "tomorrow", "next Friday", "this Monday"
+- Handles absolute dates: "2025-09-28"
+- Handles day names: "next Friday", "this Monday"
+- Returns ISO format for Google Tasks API
+
+**Examples**:
+
+```javascript
+parseTaskDueDate("tomorrow")        // Returns "2025-09-27"
+parseTaskDueDate("next Friday")     // Returns "2025-09-29"
+parseTaskDueDate("2025-09-28")      // Returns "2025-09-28"
+parseTaskDueDate("this Monday")     // Returns "2025-09-25"
+```
+
+**Task Creation Flow**:
+
+1. **Email Analysis**: AI detects self-sent email with actionable content
+2. **Task Detection**: Identifies task indicators and creates task data
+3. **Task Creation**: Creates Google Task with title, notes, due date, priority
+4. **Integration**: Task appears in your Google Tasks list
+
+**Supported Task Indicators**:
+
+- **English**: "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
+- **Russian**: "нужно", "должен", "напомни", "не забудь", "задача", "делать"
+- **Context-aware**: Understands urgency and importance from email content
 
 ## 🚨 Troubleshooting
 
