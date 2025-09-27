@@ -12,7 +12,7 @@ function analyzeEmailWithChatGPT(emailData) {
   const configContext = buildConfigurationContext();
 
   const prompt = `
-You are an expert email management AI specializing in precise categorization and urgency/importance assessment. Analyze this email with extreme attention to detail.
+You are an expert email management AI specializing in precise categorization, urgency/importance assessment, and intelligent spam detection. Analyze this email with extreme attention to detail.
 
 ${configContext}
 
@@ -23,7 +23,38 @@ Text: ${emailData.body.substring(0, 2000)}
 
 CRITICAL ANALYSIS INSTRUCTIONS:
 
-1. **CATEGORY IDENTIFICATION**: 
+1. **SPAM & FRAUD DETECTION (PRIORITY #1)**:
+   - FIRST check if this email is spam, junk, phishing, or fraud
+   - IMMEDIATELY categorize as SPAM, JUNK, or PHISHING if detected
+   - Common spam indicators:
+     * Suspicious sender domains (fake, misspelled, random characters)
+     * Generic greetings ("Dear Customer", "Dear Sir/Madam")
+     * Urgent money offers, prizes, lottery winnings
+     * Requests for personal information, passwords, bank details
+     * Poor grammar, excessive capitalization, multiple exclamation marks
+     * Suspicious links, attachments, or "click here" requests
+     * Claims of "limited time offers", "act now", "urgent response required"
+     * Fake invoices, bills, or payment requests from unknown sources
+     * Impersonation of banks, government agencies, or well-known companies
+     * Cryptocurrency, investment scams, get-rich-quick schemes
+     * Romance scams, fake dating profiles
+     * Tech support scams, fake virus warnings
+     * Phishing attempts asking to "verify account", "update information"
+   - Multilingual spam detection:
+     * Russian: "выиграли", "приз", "деньги", "срочно переведите", "подтвердите данные"
+     * English: "congratulations", "winner", "claim prize", "verify account", "urgent transfer"
+     * Common across languages: suspicious URLs, poor translation, urgent tone
+   - Sender reputation analysis:
+     * Unknown senders with suspicious domains
+     * Senders impersonating legitimate companies
+     * Generic email addresses (noreply@random-domain.com)
+   - Content analysis:
+     * Requests for money, personal info, or urgent action
+     * Too-good-to-be-true offers
+     * Threatening language or false urgency
+     * Mismatched sender and content (bank email from gmail.com)
+
+2. **CATEGORY IDENTIFICATION** (if not spam):
    - Read the email content CAREFULLY
    - Identify the PRIMARY life area this email relates to
    - Look for keywords, context, and subject matter
@@ -33,31 +64,34 @@ CRITICAL ANALYSIS INSTRUCTIONS:
    - Health emails: medical appointments, health concerns, fitness
    - Financial emails: bills, investments, banking, taxes, money management
 
-2. **URGENCY ASSESSMENT**:
+3. **URGENCY ASSESSMENT** (if not spam):
    - URGENT = Has immediate deadline, requires quick action, time-sensitive
    - NOT URGENT = Can be planned, scheduled, or done later
    - Look for words like: "urgent", "asap", "deadline", "today", "immediately", "quickly"
    - Consider if the task can wait or must be done now
+   - SPAM/FRAUD emails are NEVER truly urgent (even if they claim to be)
 
-3. **IMPORTANCE ASSESSMENT**:
+4. **IMPORTANCE ASSESSMENT** (if not spam):
    - IMPORTANT = Affects your life goals, relationships, health, finances, career
    - NOT IMPORTANT = Trivial, entertainment, low-priority tasks
    - Family matters are usually IMPORTANT
    - Work deadlines are usually IMPORTANT
    - Health issues are usually IMPORTANT
    - Financial matters are usually IMPORTANT
+   - SPAM/FRAUD emails are NEVER important
 
-4. **SPECIAL CONSIDERATIONS**:
+5. **SPECIAL CONSIDERATIONS**:
    - Family-related emails (birthdays, family events, relatives) = FAMILY category + IMPORTANT
    - Work-related emails = WORK category + usually IMPORTANT
    - Health-related emails = HEALTH category + usually IMPORTANT
    - Financial emails = FINANCIAL category + usually IMPORTANT
-   - Spam/junk/phishing = mark as trash-worthy
+   - SPAM/JUNK/PHISHING = automatically mark as trash-worthy, NOT urgent, NOT important
 
-5. **CALENDAR SCHEDULING FOR URGENT + IMPORTANT**:
+6. **CALENDAR SCHEDULING FOR URGENT + IMPORTANT** (NEVER for spam):
    - If email is identified as URGENT + IMPORTANT, analyze the content for timing cues
    - ONLY suggest calendar timing if the email clearly states a FINAL date/time
    - DO NOT create calendar events for emails that are:
+     * SPAM, JUNK, or PHISHING (NEVER create calendar events for these)
      * From Google Calendar, Outlook, or other calendar systems
      * About events already scheduled/planned
      * Reminders for existing calendar events
@@ -74,19 +108,21 @@ CRITICAL ANALYSIS INSTRUCTIONS:
      * "sometime this week" (too vague)
      * "when convenient" (too vague)
 
-6. **LANGUAGE ANALYSIS**:
+7. **LANGUAGE ANALYSIS**:
    - Russian text: "Важное напоминание себе" = "Important reminder to myself"
    - "Нужно забить все дни рождения" = "Need to enter all birthdays"
    - "родственников и друзей" = "relatives and friends" = FAMILY category
    - "Срочно и важно" = "Urgent and important" = URGENT + IMPORTANT
+   - Russian spam: "выиграли приз" = "won prize", "подтвердите данные" = "confirm data"
 
 Return JSON with precise analysis:
 {
   "categories": ["PRIMARY_CATEGORY_KEY"],
   "confidence": 0.95,
-  "reasoning": "Detailed step-by-step analysis: 1) Content analysis, 2) Category identification, 3) Urgency assessment, 4) Importance assessment, 5) Final decision",
-  "is_spam_or_junk": false,
-  "action_needed": true,
+  "reasoning": "Detailed step-by-step analysis: 1) Spam detection, 2) Content analysis, 3) Category identification, 4) Urgency assessment, 5) Importance assessment, 6) Final decision",
+  "is_spam_or_junk": true|false,
+  "spam_indicators": ["list of detected spam indicators if any"],
+  "action_needed": true|false,
   "deadline": "specific deadline if mentioned",
   "estimated_time": "realistic time estimate",
   "suggested_action": "specific action to take",
@@ -101,22 +137,31 @@ Return JSON with precise analysis:
   }
 }
 
-CRITICAL: Use ONLY the category KEYS (like "FAMILY", "WORK", "HEALTH") in the categories array, NOT the full label names with numbers and emojis.
+CRITICAL: Use ONLY the category KEYS (like "FAMILY", "WORK", "HEALTH", "SPAM", "JUNK", "PHISHING") in the categories array, NOT the full label names with numbers and emojis.
+
+SPAM DETECTION RULES:
+- If email is detected as spam/junk/phishing, set is_spam_or_junk: true
+- Spam emails should be categorized as SPAM, JUNK, or PHISHING
+- Spam emails are NEVER urgent or important (ai_urgent: false, ai_important: false)
+- Always set ignoreCalendarEventCreation: true for spam emails
+- Include specific spam_indicators array with detected red flags
 
 URGENCY/IMPORTANCE ASSESSMENT:
-- ai_urgent: Set to true if the email requires immediate action, has deadlines, or is time-sensitive
-- ai_important: Set to true if the email affects your life goals, relationships, health, finances, or career
+- ai_urgent: Set to true if the email requires immediate action, has deadlines, or is time-sensitive (NEVER true for spam)
+- ai_important: Set to true if the email affects your life goals, relationships, health, finances, or career (NEVER true for spam)
 - These will be used as baseline, then overridden by any TRUE values from assigned category labels
+- SPAM/FRAUD emails override all urgency/importance to FALSE
 
 CALENDAR EVENT CREATION ASSESSMENT:
 - ignoreCalendarEventCreation: Set to true if the email is:
+  * SPAM, JUNK, or PHISHING (ALWAYS true for these)
   * From Google Calendar, Outlook, or other calendar systems
   * About events already scheduled/planned
   * Reminders for existing calendar events
   * Meeting invitations or calendar notifications
   * Any email that mentions "already scheduled", "in your calendar", "event created"
   * Vague timing like "sometime this week", "when convenient", "let's meet"
-- Set to false only if the email clearly states a FINAL, specific date/time for a NEW task/event
+- Set to false only if the email clearly states a FINAL, specific date/time for a NEW task/event AND is not spam
 
 CRITICAL: CALENDAR TIME FORMAT REQUIREMENTS:
 - ALWAYS return specific, parseable dates in suggested_time
@@ -125,6 +170,7 @@ CRITICAL: CALENDAR TIME FORMAT REQUIREMENTS:
 - If email says "tomorrow after lunch", convert to "tomorrow 2pm"
 - If email says "this Friday", convert to "Friday 9am" or specific time
 - If email says "next week", convert to specific date like "2025-10-03T09:00:00"
+- NEVER suggest calendar events for SPAM/JUNK/PHISHING emails
 `;
 
   const payload = {
@@ -133,14 +179,14 @@ CRITICAL: CALENDAR TIME FORMAT REQUIREMENTS:
       {
         role: "system",
         content:
-          "You are an expert email categorization AI with deep understanding of urgency, importance, and life categories. You excel at analyzing email content, identifying primary categories, and making precise urgency/importance assessments. You understand multiple languages including Russian and can accurately translate and categorize content. You always provide detailed reasoning for your decisions and focus on the PRIMARY category that best fits the email content.",
+          "You are an expert email categorization AI with deep understanding of urgency, importance, life categories, and advanced spam detection. You excel at identifying spam, phishing, and fraud attempts across multiple languages. You understand that spam emails should never be considered urgent or important, regardless of their claims. You always provide detailed reasoning for your decisions and focus on the PRIMARY category that best fits the email content. Your spam detection is your highest priority - always check for spam first before any other analysis.",
       },
       {
         role: "user",
         content: prompt,
       },
     ],
-    max_tokens: 1500,
+    max_tokens: 1800,
     temperature: 0.05,
   };
 
@@ -273,7 +319,10 @@ function buildConfigurationContext() {
     "- Work trip = WORK + TRAVEL + TICKETS (work important, travel urgent)\n";
   context +=
     "- Family insurance = FAMILY + INSURANCE + CHILDREN (all important)\n";
-  context += "- Spam email = SPAM (trash-worthy)\n";
+  context += "- Spam email = SPAM (trash-worthy, never urgent/important)\n";
+  context +=
+    "- Phishing email = PHISHING (trash-worthy, never urgent/important)\n";
+  context += "- Junk email = JUNK (trash-worthy, never urgent/important)\n";
   context += "- Newsletter = NEWSLETTERS (low priority)\n";
   context += "- Meeting request = MEETINGS (urgent but not important)\n";
   context += "- Family birthdays = FAMILY (important, not urgent)\n";
@@ -288,6 +337,24 @@ function buildConfigurationContext() {
   context += "- Important: 'важно', 'important', 'важное', 'критично'\n";
   context += "- Work: 'работа', 'проект', 'встреча', 'дедлайн'\n";
   context += "- Health: 'здоровье', 'врач', 'больница', 'медицинский'\n";
+  context +=
+    "- Spam: 'выиграли', 'приз', 'деньги', 'подтвердите данные', 'срочно переведите'\n";
+  context += "\n";
+
+  // Spam detection context
+  context += "SPAM DETECTION PRIORITY:\n";
+  context +=
+    "- ALWAYS check for spam/junk/phishing FIRST before any other analysis\n";
+  context +=
+    "- Spam emails are NEVER urgent or important, regardless of claims\n";
+  context +=
+    "- Common spam domains: suspicious TLDs, misspelled company names, random characters\n";
+  context +=
+    "- Spam content: money offers, prizes, urgent transfers, account verification requests\n";
+  context +=
+    "- Phishing: fake banks, government agencies, tech support, password resets\n";
+  context +=
+    "- Fraud: romance scams, investment schemes, cryptocurrency offers\n";
   context += "\n";
 
   context +=
@@ -321,6 +388,19 @@ function determineEisenhowerQuadrant(categories, analysis = null) {
   if (!categories || categories.length === 0) {
     console.log(
       "🎯 No categories provided - defaulting to NOT_URGENT_NOT_IMPORTANT"
+    );
+    return "NOT_URGENT_NOT_IMPORTANT";
+  }
+
+  // Check if this is spam/junk/phishing - these are never urgent or important
+  const spamCategories = ["SPAM", "JUNK", "PHISHING"];
+  const hasSpamCategory = categories.some((cat) =>
+    spamCategories.includes(cat)
+  );
+
+  if (hasSpamCategory || analysis?.is_spam_or_junk) {
+    console.log(
+      "🎯 Detected spam/junk/phishing - forcing NOT_URGENT_NOT_IMPORTANT"
     );
     return "NOT_URGENT_NOT_IMPORTANT";
   }
@@ -497,9 +577,14 @@ function testAIAnalysis() {
       body: "Your medical bill of $500 is due tomorrow. Please pay online.",
     },
     {
-      subject: "Spam: Win $1000 now!",
-      sender: "spam@fake.com",
-      body: "Click here to win $1000! Limited time offer!",
+      subject: "Congratulations! You've won $1,000,000!",
+      sender: "winner@fake-lottery.com",
+      body: "Click here to claim your prize! Limited time offer! Send your bank details now!",
+    },
+    {
+      subject: "Urgent: Verify your account immediately",
+      sender: "security@bank-fake.com",
+      body: "Your account will be suspended unless you verify your information by clicking this link.",
     },
     {
       subject: "Meeting tomorrow at 2pm",
@@ -510,13 +595,19 @@ function testAIAnalysis() {
 
   for (const email of testEmails) {
     console.log(`\n📧 Testing: ${email.subject}`);
-    const analysis = analyzeEmailWithChatGPT(emailData);
+    const analysis = analyzeEmailWithChatGPT(email);
     if (analysis) {
       console.log(`✅ Categories: ${analysis.categories.join(", ")}`);
       console.log(`📊 Quadrant: ${analysis.eisenhower_quadrant}`);
+      console.log(`🚨 Spam: ${analysis.is_spam_or_junk || false}`);
       console.log(
         `🎯 Priority: ${analysis.priorityInsights?.priorityLevel || "unknown"}`
       );
+      if (analysis.spam_indicators && analysis.spam_indicators.length > 0) {
+        console.log(
+          `⚠️ Spam indicators: ${analysis.spam_indicators.join(", ")}`
+        );
+      }
     } else {
       console.log("❌ Analysis failed");
     }
