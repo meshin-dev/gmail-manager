@@ -18,14 +18,18 @@ ${configContext}
 
 EMAIL TO ANALYZE:
 Subject: ${emailData.subject}
+From: ${emailData.from || emailData.sender}
+To: ${emailData.to || 'Not specified'}
 Sender: ${emailData.sender}
 Text: ${emailData.body.substring(0, 2000)}
 
 CRITICAL ANALYSIS INSTRUCTIONS:
 
 1. **SPAM & FRAUD DETECTION (PRIORITY #1)**:
-   - FIRST check if this email is spam, junk, phishing, or fraud
-   - IMMEDIATELY categorize as SPAM, JUNK, or PHISHING if detected
+   - CRITICAL: If From and To are the same email address (self-sent email), SKIP spam detection entirely and proceed to regular categorization
+   - Self-sent emails are NEVER spam - they are personal reminders, notes, or tasks
+   - ONLY if NOT self-sent: check if this email is spam, junk, phishing, or fraud
+   - IMMEDIATELY categorize as SPAM, JUNK, or PHISHING if detected (but NEVER for self-sent emails)
    - Common spam indicators:
      * Suspicious sender domains (fake, misspelled, random characters)
      * Generic greetings ("Dear Customer", "Dear Sir/Madam")
@@ -119,7 +123,8 @@ Return JSON with precise analysis:
 {
   "categories": ["PRIMARY_CATEGORY_KEY"],
   "confidence": 0.95,
-  "reasoning": "Detailed step-by-step analysis: 1) Spam detection, 2) Content analysis, 3) Category identification, 4) Urgency assessment, 5) Importance assessment, 6) Final decision",
+  "reasoning": "Detailed step-by-step analysis: 1) Self-sent check, 2) Spam detection (if not self-sent), 3) Content analysis, 4) Category identification, 5) Urgency assessment, 6) Importance assessment, 7) Final decision",
+  "is_self_sent": true|false,
   "is_spam_or_junk": true|false,
   "spam_indicators": ["list of detected spam indicators if any"],
   "action_needed": true|false,
@@ -139,7 +144,13 @@ Return JSON with precise analysis:
 
 CRITICAL: Use ONLY the category KEYS (like "FAMILY", "WORK", "HEALTH", "SPAM", "JUNK", "PHISHING") in the categories array, NOT the full label names with numbers and emojis.
 
-SPAM DETECTION RULES:
+SELF-SENT EMAIL RULES:
+- If From and To email addresses are identical, set is_self_sent: true
+- Self-sent emails are NEVER spam (is_spam_or_junk: false, spam_indicators: [])
+- Self-sent emails should be analyzed for regular importance and urgency based on content
+- Self-sent emails are typically personal reminders, notes, or tasks - analyze accordingly
+
+SPAM DETECTION RULES (ONLY for non-self-sent emails):
 - If email is detected as spam/junk/phishing, set is_spam_or_junk: true
 - Spam emails should be categorized as SPAM, JUNK, or PHISHING
 - Spam emails are NEVER urgent or important (ai_urgent: false, ai_important: false)
@@ -179,7 +190,7 @@ CRITICAL: CALENDAR TIME FORMAT REQUIREMENTS:
       {
         role: "system",
         content:
-          "You are an expert email categorization AI with deep understanding of urgency, importance, life categories, and advanced spam detection. You excel at identifying spam, phishing, and fraud attempts across multiple languages. You understand that spam emails should never be considered urgent or important, regardless of their claims. You always provide detailed reasoning for your decisions and focus on the PRIMARY category that best fits the email content. Your spam detection is your highest priority - always check for spam first before any other analysis.",
+          "You are an expert email categorization AI with deep understanding of urgency, importance, life categories, and advanced spam detection. You excel at identifying spam, phishing, and fraud attempts across multiple languages. CRITICAL: You understand that self-sent emails (where From and To are the same) are NEVER spam - they are personal reminders or notes that should be analyzed for regular importance/urgency. You understand that spam emails should never be considered urgent or important, regardless of their claims. You always provide detailed reasoning for your decisions and focus on the PRIMARY category that best fits the email content. Your first priority is checking if an email is self-sent, then spam detection for non-self-sent emails.",
       },
       {
         role: "user",
@@ -574,22 +585,37 @@ function testAIAnalysis() {
     {
       subject: "Medical bill due tomorrow",
       sender: "hospital@example.com",
+      from: "hospital@example.com",
+      to: "user@example.com",
       body: "Your medical bill of $500 is due tomorrow. Please pay online.",
     },
     {
       subject: "Congratulations! You've won $1,000,000!",
       sender: "winner@fake-lottery.com",
+      from: "winner@fake-lottery.com",
+      to: "user@example.com",
       body: "Click here to claim your prize! Limited time offer! Send your bank details now!",
     },
     {
       subject: "Urgent: Verify your account immediately",
       sender: "security@bank-fake.com",
+      from: "security@bank-fake.com",
+      to: "user@example.com",
       body: "Your account will be suspended unless you verify your information by clicking this link.",
     },
     {
       subject: "Meeting tomorrow at 2pm",
       sender: "colleague@company.com",
+      from: "colleague@company.com",
+      to: "user@example.com",
       body: "Let's discuss the project tomorrow at 2pm in conference room A.",
+    },
+    {
+      subject: "Important reminder to myself",
+      sender: "user@example.com",
+      from: "user@example.com",
+      to: "user@example.com",
+      body: "Need to add all family birthdays to calendar this weekend. This is urgent and important for family relationships.",
     },
   ];
 
@@ -599,6 +625,7 @@ function testAIAnalysis() {
     if (analysis) {
       console.log(`✅ Categories: ${analysis.categories.join(", ")}`);
       console.log(`📊 Quadrant: ${analysis.eisenhower_quadrant}`);
+      console.log(`👤 Self-sent: ${analysis.is_self_sent || false}`);
       console.log(`🚨 Spam: ${analysis.is_spam_or_junk || false}`);
       console.log(
         `🎯 Priority: ${analysis.priorityInsights?.priorityLevel || "unknown"}`
