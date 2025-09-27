@@ -114,8 +114,7 @@ CRITICAL ANALYSIS INSTRUCTIONS:
 
 6. **TASK CREATION ANALYSIS** (for self-sent emails):
    - If email is self-sent and contains actionable items, consider creating a Google Task
-   - Look for task indicators: "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
-   - Russian task indicators: "нужно", "должен", "напомни", "не забудь", "задача", "делать"
+   - Look for task indicators in any language: "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
    - Create task if email contains specific actionable items that need to be done
    - Task title should be clear and actionable (e.g., "Add family birthdays to calendar")
    - **CRITICAL: Task notes must preserve EVERY detail from the original email with grammar/spelling corrections:**
@@ -131,11 +130,9 @@ CRITICAL ANALYSIS INSTRUCTIONS:
    - Priority: high for urgent+important, normal for important, low for others
 
 7. **LANGUAGE ANALYSIS**:
-   - Russian text: "Важное напоминание себе" = "Important reminder to myself"
-   - "Нужно забить все дни рождения" = "Need to enter all birthdays"
-   - "родственников и друзей" = "relatives and friends" = FAMILY category
-   - "Срочно и важно" = "Urgent and important" = URGENT + IMPORTANT
-   - Russian spam: "выиграли приз" = "won prize", "подтвердите данные" = "confirm data"
+   - Automatically detect and process emails in any language
+   - Identify task indicators, urgency, importance, and categories regardless of language
+   - Apply appropriate categorization and priority based on content meaning
 
 Return JSON with precise analysis:
 {
@@ -202,8 +199,7 @@ CALENDAR EVENT CREATION ASSESSMENT:
 TASK CREATION ASSESSMENT:
 - should_create_task: Set to true if the email is:
   * Self-sent (From = To) AND contains actionable items
-  * Contains task indicators: "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
-  * Russian indicators: "нужно", "должен", "напомни", "не забудь", "задача", "делать"
+  * Contains task indicators in any language: "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
   * Has specific actionable items that need to be completed
 - task_title: Create clear, actionable title (e.g., "Add family birthdays to calendar")
 - task_notes: CRITICAL - Preserve ALL details from the original email with grammar/spelling corrections:

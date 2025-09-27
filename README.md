@@ -791,6 +791,10 @@ parseEstimatedTime("2h")         // Returns 7200000ms (2 hours)
 
 ### Google Tasks Integration
 
+#### Task Creation Mechanism
+
+The system automatically creates Google Tasks from self-sent emails containing actionable items. This feature transforms your personal reminder emails into organized, actionable tasks in Google Tasks.
+
 #### `createGoogleTask(analysis, emailSubject)`
 
 **Purpose**: Creates Google Tasks from self-sent emails with actionable items  
@@ -806,23 +810,117 @@ parseEstimatedTime("2h")         // Returns 7200000ms (2 hours)
 - Sets priority based on urgency and importance
 - Uses the default Google Tasks list
 
-**Task Creation Logic**:
+#### Task Creation Logic
+
+**Detection Criteria**:
 
 - **Self-sent emails only**: Only creates tasks for emails sent to yourself
-- **Actionable content**: Looks for task indicators like "need to", "should", "must", "remind me to"
-- **Russian support**: Recognizes "нужно", "должен", "напомни", "не забудь", "задача"
+- **Actionable content**: Looks for task indicators like "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
+- **Multilingual support**: Automatically detects task indicators in any language
 - **Smart titles**: Creates clear, actionable task titles
 - **Due dates**: Parses due dates from email content ("tomorrow", "next Friday", "2025-09-28")
 - **Priority levels**: High for urgent+important, normal for important, low for others
 
-**Example**:
+**Task Notes Enhancement**:
 
-```javascript
-// Email: "Need to add family birthdays to calendar this weekend"
-// Creates task: "Add family birthdays to calendar"
-// Due date: This weekend
-// Priority: High (if urgent+important)
+- **Grammar & Spelling Correction**: Automatically fixes typos and grammatical errors
+- **Complete Detail Preservation**: Includes ALL original email content with corrections
+- **Structured Format**: Uses clear format with original email and task context
+- **No Information Loss**: Never summarizes or loses any details from the original email
+
+#### Task Creation Process
+
+1. **Email Analysis**: AI analyzes self-sent emails for actionable content
+2. **Task Detection**: Identifies task indicators and determines if task should be created
+3. **Content Processing**: Preserves all email details while correcting grammar/spelling
+4. **Task Creation**: Creates Google Task with enhanced notes and proper metadata
+5. **Integration**: Task appears in your Google Tasks list with full context
+
+#### Example Task Creation
+
+**Original Email (with errors)**:
+
+```text
+Subject: Reminder to add bithdays
+Content: Need to add all family bithdays to calender this weekend. 
+Spesific dates to add:
+- Mom's bithday: March 15th
+- Dad's bithday: July 22nd  
+- Sister's bithday: November 8th
+This is urgent and importent for family relationships.
 ```
+
+**Created Google Task**:
+
+- **Title**: "Add family birthdays to calendar"
+- **Due Date**: This weekend
+- **Priority**: High (urgent + important)
+- **Notes**:
+
+```text
+ORIGINAL EMAIL (CORRECTED):
+Subject: Reminder to add birthdays
+Content: Need to add all family birthdays to calendar this weekend. 
+Specific dates to add:
+- Mom's birthday: March 15th
+- Dad's birthday: July 22nd  
+- Sister's birthday: November 8th
+This is urgent and important for family relationships.
+
+TASK CONTEXT: Family relationship maintenance task requiring calendar updates
+```
+
+#### Supported Task Indicators
+
+**Common Task Indicators** (automatically detected in any language):
+
+- "need to", "should", "must", "remind me to", "don't forget", "todo", "task"
+- "have to", "got to", "supposed to", "plan to", "intend to"
+- The AI automatically recognizes task indicators in any language
+
+#### Task Priority Mapping
+
+- **High Priority**: Urgent + Important emails (Eisenhower Matrix Quadrant 1)
+- **Normal Priority**: Important but not urgent emails (Quadrant 2)
+- **Low Priority**: Other actionable items (Quadrants 3 & 4)
+
+#### Task Creation Workflow
+
+1. **Send Email to Yourself**: Write a reminder or task email to yourself
+2. **AI Analysis**: System detects actionable content and task indicators
+3. **Task Generation**: Creates Google Task with enhanced notes
+4. **Integration**: Task appears in your Google Tasks list
+5. **Execution**: Complete the task and mark as done in Google Tasks
+
+#### Benefits of Task Creation
+
+- **No Information Loss**: Every detail from your email is preserved
+- **Grammar Correction**: Automatically fixes typos and improves readability
+- **Smart Organization**: Tasks are properly categorized and prioritized
+- **Seamless Integration**: Works with your existing Google Tasks workflow
+- **Multilingual Support**: Automatically recognizes task indicators in any language
+- **Context Preservation**: Maintains all original context and requirements
+- **Due Date Intelligence**: Automatically parses and sets due dates from email content
+
+#### Use Cases
+
+**Personal Reminders**:
+
+- "Need to call mom this weekend"
+- "Don't forget to pay electricity bill by Friday"
+- "Remind me to book dentist appointment"
+
+**Project Tasks**:
+
+- "Need to finish the quarterly report by next Tuesday"
+- "Should update the website with new product photos"
+- "Must prepare presentation for client meeting"
+
+**Family & Personal**:
+
+- "Add all family birthdays to calendar this weekend"
+- "Plan vacation for next month"
+- "Organize garage before winter"
 
 #### `parseTaskDueDate(dueDateString)`
 
