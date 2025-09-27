@@ -27,15 +27,33 @@ function processEmails(mode = "batch") {
         const processedLabelName = CONFIG.LABELS.PROCESSED.name;
         const processedLabel = GmailApp.getUserLabelByName(processedLabelName);
         if (processedLabel) {
+          // Use proper Gmail search syntax to exclude processed emails
+          // Gmail search requires quotes around label names with spaces/special chars
           searchQuery += ` -label:"${processedLabelName}"`;
+          console.log(`🔍 Excluding processed emails with label: ${processedLabelName}`);
         }
       } catch (e) {
         console.log("📋 PROCESSED label doesn't exist yet, using basic search");
       }
+      console.log(`🔍 Real-time search query: ${searchQuery}`);
       threads = GmailApp.search(searchQuery, 0, CONFIG.BATCH_SIZE);
     } else {
-      // Batch processing: all inbox emails
-      threads = GmailApp.getInboxThreads(0, 50);
+      // Batch processing: only unprocessed emails
+      searchQuery = "in:inbox";
+      try {
+        const processedLabelName = CONFIG.LABELS.PROCESSED.name;
+        const processedLabel = GmailApp.getUserLabelByName(processedLabelName);
+        if (processedLabel) {
+          // Use proper Gmail search syntax to exclude processed emails
+          // Gmail search requires quotes around label names with spaces/special chars
+          searchQuery += ` -label:"${processedLabelName}"`;
+          console.log(`🔍 Excluding processed emails with label: ${processedLabelName}`);
+        }
+      } catch (e) {
+        console.log("📋 PROCESSED label doesn't exist yet, using basic search");
+      }
+      console.log(`🔍 Batch search query: ${searchQuery}`);
+      threads = GmailApp.search(searchQuery, 0, 50);
     }
 
     if (threads.length === 0) {
@@ -47,19 +65,29 @@ function processEmails(mode = "batch") {
 
     for (let thread of threads) {
       if (!thread.hasStarredMessages()) {
+        // Check if email is already processed before processing
+        const processedLabelName = CONFIG.LABELS.PROCESSED.name;
+        const processedLabel = GmailApp.getUserLabelByName(processedLabelName);
+        const isAlreadyProcessed = processedLabel && thread.getLabels().some(label => label.getName() === processedLabelName);
+        
+        if (isAlreadyProcessed) {
+          console.log(`⏭️ Skipping already processed email: ${thread.getFirstMessageSubject().substring(0, 50)}...`);
+          continue;
+        }
+
         // Process only unstarred emails
         processEmailThread(thread);
 
         // Mark as processed to avoid reprocessing
         console.log("🔍 Attempting to get/create PROCESSED label...");
-        const processedLabel = getOrCreateLabel("PROCESSED");
+        const processedLabelForMarking = getOrCreateLabel("PROCESSED");
         console.log(
           "🔍 PROCESSED label result:",
-          processedLabel ? "SUCCESS" : "FAILED"
+          processedLabelForMarking ? "SUCCESS" : "FAILED"
         );
 
-        if (processedLabel) {
-          thread.addLabel(processedLabel);
+        if (processedLabelForMarking) {
+          thread.addLabel(processedLabelForMarking);
           console.log(
             `   ✓ Marked as processed: ${thread
               .getFirstMessageSubject()
