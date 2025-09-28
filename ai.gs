@@ -125,7 +125,7 @@ CRITICAL ANALYSIS INSTRUCTIONS:
      * Include the original subject line (also corrected if needed)
      * Include any references to attachments, links, or external resources
      * NEVER summarize, condense, or lose any information
-     * Format: "ORIGINAL EMAIL (CORRECTED):\nSubject: [corrected subject]\nContent: [corrected email body with proper grammar and spelling]\n\nTASK CONTEXT: [additional context]"
+     * Format: "ORIGINAL EMAIL:\nSubject: [corrected subject]\nContent: [corrected email body with proper grammar and spelling]\n\nTASK CONTEXT: [additional context]"
    - Set due date if mentioned in email, otherwise leave empty
    - Priority: high for urgent+important, normal for important, low for others
 
@@ -158,7 +158,7 @@ Return JSON with precise analysis:
   "task_creation": {
     "should_create_task": true|false,
     "task_title": "specific task title if task should be created",
-    "task_notes": "ORIGINAL EMAIL (CORRECTED):\nSubject: [corrected subject]\nContent: [corrected email body with proper grammar and spelling, preserving ALL details]\n\nTASK CONTEXT: [any additional context]",
+    "task_notes": "ORIGINAL EMAIL:\nSubject: [corrected subject]\nContent: [corrected email body with proper grammar and spelling, preserving ALL details]\n\nTASK CONTEXT: [any additional context]",
     "task_due_date": "specific due date if mentioned (e.g., '2025-09-28', 'tomorrow', 'next Friday')",
     "task_priority": "high|normal|low based on urgency and importance"
   }
@@ -210,7 +210,7 @@ TASK CREATION ASSESSMENT:
   * Include the original subject line (also corrected if needed)
   * Include any attachments or references mentioned
   * NEVER summarize or lose any information from the original email
-  * Format: "ORIGINAL EMAIL (CORRECTED):\nSubject: [corrected subject]\nContent: [corrected email body with proper grammar and spelling]\n\nTASK CONTEXT: [additional context if needed]"
+  * Format: "ORIGINAL EMAIL:\nSubject: [corrected subject]\nContent: [corrected email body with proper grammar and spelling]\n\nTASK CONTEXT: [additional context if needed]"
 - task_due_date: Set if mentioned in email, otherwise leave empty
 - task_priority: Set based on urgency/importance (high for urgent+important, normal for important, low for others)
 
